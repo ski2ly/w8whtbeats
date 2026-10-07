@@ -14,13 +14,13 @@ export const DealModal: React.FC<DealModalProps> = ({ beat, onClose }) => {
 
   if (!beat) return null
 
-  // Pre-formatted friendly direct collab message for Telegram
-  const tgMessage = `Привет, Skilly! Заценил бит «${beat.title}» (${beat.bpm} BPM, ${beat.key}). Хочу взять его в работу / сделать трек.`
+  // Pre-formatted friendly direct message for Telegram
+  const tgMessage = `Привет, Skilly! Заценил бит «${beat.title}» (${beat.bpm} BPM, ${beat.key}). Хочу забрать WAV и залететь на него.`
   const tgUrl = `https://t.me/${SITE_CONFIG.telegramHandle}?text=${encodeURIComponent(tgMessage)}`
 
   // Pre-formatted mailto
-  const emailSubject = `Коллаб / Бит ${beat.title} [WWSKILLY]`
-  const emailBody = `Привет, Skilly!\n\nЗаценил твой бит «${beat.title}» (${beat.bpm} BPM, ${beat.key}, жанр: ${beat.genre}).\nХочу взять его в работу под релиз.\n\nМой никнейм/ссылка на треки:\nTelegram / контакт для связи:`
+  const emailSubject = `Бит ${beat.title} [WWSKILLY]`
+  const emailBody = `Привет, Skilly!\n\nЗаценил твой бит «${beat.title}» (${beat.bpm} BPM, ${beat.key}).\nХочу взять его в работу под трек.\n\nМой никнейм/контакт для связи:`
   const mailtoUrl = `mailto:${SITE_CONFIG.email}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`
 
   const handleCopy = (text: string, type: 'tg' | 'email') => {
@@ -31,8 +31,8 @@ export const DealModal: React.FC<DealModalProps> = ({ beat, onClose }) => {
 
   const triggerConfetti = () => {
     confetti({
-      particleCount: 55,
-      spread: 70,
+      particleCount: 50,
+      spread: 65,
       origin: { y: 0.65 },
       colors: ['#ffffff', '#d4d4d8', '#71717a'],
     })
@@ -63,7 +63,7 @@ export const DealModal: React.FC<DealModalProps> = ({ beat, onClose }) => {
         <div className="relative z-10">
           <div className="flex items-center gap-2 text-xs font-mono-tech text-zinc-400 uppercase tracking-widest mb-1.5">
             <Radio size={14} className="text-zinc-300 animate-pulse" />
-            <span>ЗАПРОС НА КОЛЛАБ // СВЯЗЬ С SKILLY</span>
+            <span>ВЗЯТЬ БИТ // СВЯЗЬ С SKILLY</span>
           </div>
 
           <h2 className="text-2xl sm:text-3xl font-soyuz text-white tracking-wide uppercase crt-glow-text leading-tight">
@@ -80,10 +80,10 @@ export const DealModal: React.FC<DealModalProps> = ({ beat, onClose }) => {
           </div>
         </div>
 
-        {/* Collab Proposition Note */}
+        {/* Free WAV Note */}
         <div className="relative z-10 mt-5 p-3.5 rounded-xl bg-zinc-900/90 border border-zinc-800 text-xs sm:text-sm font-sans">
           <p className="text-zinc-200 font-medium leading-relaxed">
-            Понравился бит? Пиши в Telegram — скину полный <b>WAV</b> и дорожки без тегов, обсудим детали напрямую.
+            Понравился бит? Пиши в Telegram — бесплатно скину <b>WAV</b> под твой трек.
           </p>
         </div>
 
@@ -133,7 +133,7 @@ export const DealModal: React.FC<DealModalProps> = ({ beat, onClose }) => {
         {/* Footer Note */}
         <div className="relative z-10 mt-4 text-center">
           <p className="text-[11px] font-mono-tech text-zinc-500">
-            WWSKILLY SOUND • Быстрый ответ в Telegram
+            "{SITE_CONFIG.producerTag}" • Быстрый ответ в Telegram
           </p>
         </div>
       </div>
