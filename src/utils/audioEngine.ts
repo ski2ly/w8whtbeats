@@ -10,6 +10,7 @@ class AudioEngine {
   private loopTimer: number | null = null
   private isSynthesizing = false
   private isPlaying = false
+  private isLooping = false
   private currentBeatId: string | null = null
   private startTime = 0
   private onEndedCallback: (() => void) | null = null
@@ -48,6 +49,17 @@ class AudioEngine {
     return this.currentBeatId
   }
 
+  public getIsLooping(): boolean {
+    return this.isLooping
+  }
+
+  public setLoop(loop: boolean) {
+    this.isLooping = loop
+    if (this.htmlAudio) {
+      this.htmlAudio.loop = loop
+    }
+  }
+
   // Play a beat: if audioUrl exists, loads it. Otherwise generates procedural trap loop!
   public async playBeat(beat: Beat, onEnded?: () => void) {
     this.initContext()
@@ -82,6 +94,7 @@ class AudioEngine {
   private playHtmlAudio(url: string) {
     this.htmlAudio = new Audio(url)
     this.htmlAudio.crossOrigin = 'anonymous'
+    this.htmlAudio.loop = this.isLooping
 
     if (this.ctx && this.analyser) {
       try {
@@ -98,8 +111,10 @@ class AudioEngine {
     })
 
     this.htmlAudio.onended = () => {
-      this.stop()
-      if (this.onEndedCallback) this.onEndedCallback()
+      if (!this.isLooping) {
+        this.stop()
+        if (this.onEndedCallback) this.onEndedCallback()
+      }
     }
   }
 
@@ -109,7 +124,6 @@ class AudioEngine {
     this.isSynthesizing = true
 
     // Create a dedicated synth gain node connected to analyser
-    // This allows instant cutoff of all scheduled sounds when pausing or switching!
     this.synthGain = this.ctx.createGain()
     this.synthGain.gain.setValueAtTime(1, this.ctx.currentTime)
     this.synthGain.connect(this.analyser)
@@ -163,9 +177,9 @@ class AudioEngine {
         }
       }
 
-      // Schedule next loop or end after 15s preview
+      // Schedule next loop or end after 15s preview (unless loop is active)
       const elapsed = this.ctx.currentTime - this.startTime
-      if (elapsed < 14.5) {
+      if (this.isLooping || elapsed < 14.5) {
         this.loopTimer = window.setTimeout(() => {
           if (this.isPlaying && this.isSynthesizing) {
             schedulePattern(this.ctx!.currentTime + 0.05)
@@ -218,7 +232,7 @@ class AudioEngine {
 
     this.activeNodes.push(osc)
     osc.start(time)
-    osc.stop(time + durationOrDefault(0.12))
+    osc.stop(time + 0.12)
   }
 
   // Snappy Trap Snare
@@ -299,6 +313,55 @@ class AudioEngine {
     osc.stop(time + 0.45)
   }
 
+  // Soft analogue TV channel switch click (quiet, tactile)
+  public playSwitchClick() {
+    this.initContext()
+    if (!this.ctx || !this.masterGain) return
+    const now = this.ctx.currentTime
+    const osc = this.ctx.createOscillator()
+    const gain = this.ctx.createGain()
+    const filter = this.ctx.createBiquadFilter()
+
+    osc.type = 'triangle'
+    osc.frequency.setValueAtTime(260, now)
+    osc.frequency.exponentialRampToValueAtTime(50, now + 0.02)
+
+    filter.type = 'lowpass'
+    filter.frequency.setValueAtTime(900, now)
+
+    gain.gain.setValueAtTime(0.07, now)
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.025)
+
+    osc.connect(filter)
+    filter.connect(gain)
+    gain.connect(this.masterGain)
+
+    osc.start(now)
+    osc.stop(now + 0.03)
+  }
+
+  // TV Power Switch relay click
+  public playPowerClick() {
+    this.initContext()
+    if (!this.ctx || !this.masterGain) return
+    const now = this.ctx.currentTime
+    const osc = this.ctx.createOscillator()
+    const gain = this.ctx.createGain()
+
+    osc.type = 'square'
+    osc.frequency.setValueAtTime(140, now)
+    osc.frequency.exponentialRampToValueAtTime(35, now + 0.035)
+
+    gain.gain.setValueAtTime(0.1, now)
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04)
+
+    osc.connect(gain)
+    gain.connect(this.masterGain)
+
+    osc.start(now)
+    osc.stop(now + 0.045)
+  }
+
   // Authentic User Voice Tag ("skilly tag.wav")
   public playVoiceTag() {
     this.initContext()
@@ -308,7 +371,6 @@ class AudioEngine {
       this.tagAudio = null
     }
 
-    // Play real audio tag from public/audio/skilly-tag.wav
     this.tagAudio = new Audio('/audio/skilly-tag.wav')
     if (this.ctx && this.analyser) {
       try {
@@ -317,7 +379,6 @@ class AudioEngine {
       } catch {}
     }
     this.tagAudio.play().catch(() => {
-      // Fallback synthetic sweep if file cannot be loaded
       this.playSyntheticVoiceTag()
     })
   }
@@ -396,10 +457,6 @@ class AudioEngine {
       this.masterGain.gain.setValueAtTime(Math.max(0, Math.min(1, volume)), this.ctx.currentTime)
     }
   }
-}
-
-function durationOrDefault(d: number) {
-  return d
 }
 
 export const audioEngine = new AudioEngine()

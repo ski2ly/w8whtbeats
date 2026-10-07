@@ -34,6 +34,7 @@ export function App() {
     (beat: Beat) => {
       const idx = beats.findIndex((b) => b.id === beat.id)
       if (idx !== -1) {
+        audioEngine.playSwitchClick()
         setCurrentBeatIndex(idx)
         // If clicking same beat that was already playing, toggle pause
         if (currentBeat.id === beat.id && isPlaying) {
@@ -52,6 +53,7 @@ export function App() {
 
   // Switch to next channel/beat
   const handleNextBeat = useCallback(() => {
+    audioEngine.playSwitchClick()
     const nextIdx = (currentBeatIndex + 1) % beats.length
     setCurrentBeatIndex(nextIdx)
     const nextBeat = beats[nextIdx]
@@ -62,6 +64,7 @@ export function App() {
 
   // Switch to prev channel/beat
   const handlePrevBeat = useCallback(() => {
+    audioEngine.playSwitchClick()
     const prevIdx = (currentBeatIndex - 1 + beats.length) % beats.length
     setCurrentBeatIndex(prevIdx)
     const prevBeat = beats[prevIdx]
