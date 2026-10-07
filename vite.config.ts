@@ -30,8 +30,12 @@ function getBeatsFiles(): Array<{ filename: string; url: string }> {
     }
   }
 
-  // Scan all audio files in public/beats/
-  const allFiles = fs.readdirSync(publicBeatsDir).filter((file) => /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(file))
+  // Scan all audio files in public/beats/ and sort alphabetically
+  const allFiles = fs
+    .readdirSync(publicBeatsDir)
+    .filter((file) => /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(file))
+    .sort((a, b) => a.localeCompare(b, 'ru', { numeric: true, sensitivity: 'base' }))
+
   for (const file of allFiles) {
     if (!seen.has(file)) {
       seen.add(file)

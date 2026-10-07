@@ -9,12 +9,18 @@ const globAudio = import.meta.glob<string>('/src/beats/*.{mp3,wav,ogg,m4a,aac,fl
   import: 'default',
 })
 
+function sortBeatsAlphabetically(beats: Beat[]): Beat[] {
+  return [...beats].sort((a, b) =>
+    a.title.localeCompare(b.title, 'ru', { numeric: true, sensitivity: 'base' })
+  )
+}
+
 export function getStaticDiscoveredBeats(): Beat[] {
   const beats: Beat[] = []
   for (const [filePath, fileUrl] of Object.entries(globAudio)) {
     beats.push(parseBeatFilename(filePath, fileUrl))
   }
-  return beats
+  return sortBeatsAlphabetically(beats)
 }
 
 // 2. Dynamic live discovery from container/public folder (/api/beats or /beats.json)
@@ -31,7 +37,8 @@ export async function fetchLiveContainerBeats(): Promise<Beat[]> {
     if (response.ok) {
       const data: Array<{ filename: string; url: string }> = await response.json()
       if (Array.isArray(data) && data.length > 0) {
-        return data.map((item) => parseBeatFilename(item.filename, item.url))
+        const loaded = data.map((item) => parseBeatFilename(item.filename, item.url))
+        return sortBeatsAlphabetically(loaded)
       }
     }
   } catch {
@@ -40,11 +47,11 @@ export async function fetchLiveContainerBeats(): Promise<Beat[]> {
 
   // If container fetch returned nothing, return static glob beats or fallback catalog
   const staticBeats = getStaticDiscoveredBeats()
-  return staticBeats.length > 0 ? staticBeats : BEATS_CATALOG
+  return staticBeats.length > 0 ? staticBeats : sortBeatsAlphabetically(BEATS_CATALOG)
 }
 
 // Initial beats for synchronous first render
 export function getInitialBeats(): Beat[] {
   const staticBeats = getStaticDiscoveredBeats()
-  return staticBeats.length > 0 ? staticBeats : BEATS_CATALOG
+  return staticBeats.length > 0 ? staticBeats : sortBeatsAlphabetically(BEATS_CATALOG)
 }

@@ -37,9 +37,10 @@ const server = http.createServer((req, res) => {
   // 1. Dynamic Live Container API: /api/beats
   if (pathname === '/api/beats') {
     try {
-      const files = fs.readdirSync(BEATS_DIR).filter((file) => {
-        return /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(file)
-      })
+      const files = fs
+        .readdirSync(BEATS_DIR)
+        .filter((file) => /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(file))
+        .sort((a, b) => a.localeCompare(b, 'ru', { numeric: true, sensitivity: 'base' }))
 
       const beats = files.map((file) => ({
         filename: file,

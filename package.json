@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "start": "node server.js",
+    "deploy": "git add -A && git commit -m \"Update beats\" && git push",
     "lint": "oxlint",
     "preview": "vite preview"
   },
