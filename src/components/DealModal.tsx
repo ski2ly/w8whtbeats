@@ -70,26 +70,20 @@ export const DealModal: React.FC<DealModalProps> = ({ beat, onClose }) => {
             {beat.title}
           </h2>
 
-          <div className="flex flex-wrap items-center gap-2 mt-2 font-mono-tech text-xs text-zinc-300">
+          <div className="flex items-center gap-2 mt-2 font-mono-tech text-xs text-zinc-300">
             <span className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-700 font-bold">
               {beat.bpm} BPM
             </span>
             <span className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-700 font-bold">
               KEY: {beat.key}
             </span>
-            <span className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-700 text-zinc-300">
-              {beat.genre}
-            </span>
           </div>
         </div>
 
         {/* Collab Proposition Note */}
-        <div className="relative z-10 mt-5 p-4 rounded-xl bg-zinc-900/90 border border-zinc-800 text-xs sm:text-sm font-sans space-y-2">
+        <div className="relative z-10 mt-5 p-3.5 rounded-xl bg-zinc-900/90 border border-zinc-800 text-xs sm:text-sm font-sans">
           <p className="text-zinc-200 font-medium leading-relaxed">
-            Понравился бит? Залетай в личку напрямую — отдаю полный мастер <b>WAV</b> и мультитрек (дорожки) без войс-тегов.
-          </p>
-          <p className="text-zinc-400 text-xs leading-relaxed">
-            Все условия сотрудничества и релиза обсудим лично без посредников. Главное — сделать плотный качественный трек.
+            Понравился бит? Пиши в Telegram — скину полный <b>WAV</b> и дорожки без тегов, обсудим детали напрямую.
           </p>
         </div>
 

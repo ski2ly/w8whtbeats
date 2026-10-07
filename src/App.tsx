@@ -7,7 +7,6 @@ import { CrtMonitor } from './components/CrtMonitor'
 import { BeatList } from './components/BeatList'
 import { DealModal } from './components/DealModal'
 import { Footer } from './components/Footer'
-import { SITE_CONFIG } from './config/site'
 
 export function App() {
   const [beats] = useState<Beat[]>(BEATS_CATALOG)
@@ -106,27 +105,8 @@ export function App() {
         {/* Top Header */}
         <Header />
 
-        {/* Daily Collab Hook Banner (matches the daily social media trend posts) */}
-        <div className="mt-2.5 py-2 px-3.5 rounded-xl bg-zinc-900/90 border border-zinc-800 flex items-center justify-between gap-2 text-xs font-mono-tech text-zinc-300">
-          <div className="flex items-center gap-2 truncate">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-            <span className="font-bold text-white uppercase tracking-wider truncate text-[11px] sm:text-xs">
-              {SITE_CONFIG.collabHeadline} // ОТБОР АРТИСТОВ
-            </span>
-          </div>
-          <a
-            href={SITE_CONFIG.telegramUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="shrink-0 text-[11px] font-bold text-zinc-300 hover:text-white flex items-center gap-1 border border-zinc-700/60 bg-zinc-800/80 px-2 py-0.5 rounded-lg transition-colors"
-          >
-            <span>В ТГ КАНАЛ / ЛС</span>
-            <span>→</span>
-          </a>
-        </div>
-
         {/* Main Content: Mobile Stack / Desktop 2-Column */}
-        <main className="mt-3 sm:mt-5 flex-1">
+        <main className="mt-4 sm:mt-6 flex-1">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             
             {/* Left Column (Desktop: Sticky CRT Monitor / Mobile: Top Hero) */}

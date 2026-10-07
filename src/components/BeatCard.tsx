@@ -24,10 +24,10 @@ export const BeatCard: React.FC<BeatCardProps> = ({
   return (
     <div
       onClick={() => onSelect(beat)}
-      className={`group relative rounded-2xl p-4 sm:p-5 transition-all duration-200 cursor-pointer border ${
+      className={`group relative rounded-2xl p-4 sm:p-4.5 transition-all duration-200 cursor-pointer border ${
         isActive
-          ? 'bg-gradient-to-r from-zinc-900 via-zinc-800/90 to-zinc-900 border-zinc-400 shadow-[0_8px_30px_rgba(0,0,0,0.8),inset_0_0_15px_rgba(255,255,255,0.06)]'
-          : 'bg-[#0c0d12]/90 hover:bg-[#12131a] border-zinc-800/90 hover:border-zinc-700'
+          ? 'bg-zinc-900/90 border-zinc-400 shadow-[0_8px_30px_rgba(0,0,0,0.8),inset_0_0_15px_rgba(255,255,255,0.06)]'
+          : 'bg-[#0b0c10]/90 hover:bg-[#111218] border-zinc-800/80 hover:border-zinc-700'
       }`}
     >
       <div className="flex items-center justify-between gap-3">
@@ -53,7 +53,7 @@ export const BeatCard: React.FC<BeatCardProps> = ({
             )}
           </button>
 
-          {/* Track Details */}
+          {/* Track Details: Number, Title, BPM and Key ONLY */}
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-[11px] font-mono-tech text-zinc-500 font-bold">
@@ -71,20 +71,16 @@ export const BeatCard: React.FC<BeatCardProps> = ({
               )}
             </div>
 
-            {/* Badges / Specs */}
-            <div className="flex flex-wrap items-center gap-2 mt-1 font-mono-tech text-xs text-zinc-400">
+            {/* Clean Specs: BPM & Key ONLY */}
+            <div className="flex items-center gap-2 mt-0.5 font-mono-tech text-xs text-zinc-400">
               <span className="text-zinc-300 font-semibold">{beat.bpm} BPM</span>
-              <span>•</span>
+              <span className="text-zinc-600">•</span>
               <span className="text-zinc-300">{beat.key}</span>
-              <span>•</span>
-              <span className="px-1.5 py-0.2 rounded bg-zinc-800/70 text-[10px] text-zinc-400 border border-zinc-700/60">
-                {beat.genre}
-              </span>
             </div>
           </div>
         </div>
 
-        {/* Right: Inquire / Collab Button */}
+        {/* Right: Action Button */}
         <div className="shrink-0 flex items-center gap-2">
           <button
             onClick={(e) => {
@@ -99,20 +95,6 @@ export const BeatCard: React.FC<BeatCardProps> = ({
           </button>
         </div>
       </div>
-
-      {/* Description / Tags Row on Expansion */}
-      {beat.tags && beat.tags.length > 0 && (
-        <div className="mt-2.5 pt-2.5 border-t border-zinc-800/60 flex items-center justify-between text-[11px] font-mono-tech text-zinc-500">
-          <div className="flex items-center gap-1.5 overflow-hidden text-ellipsis whitespace-nowrap">
-            {beat.tags.map((tag) => (
-              <span key={tag} className="text-zinc-500 hover:text-zinc-300 transition-colors">
-                #{tag.toLowerCase()}
-              </span>
-            ))}
-          </div>
-          <span className="shrink-0 text-zinc-400 ml-2">15s PREVIEW</span>
-        </div>
-      )}
     </div>
   )
 }

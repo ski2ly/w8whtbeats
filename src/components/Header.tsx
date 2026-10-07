@@ -17,20 +17,12 @@ export const Header: React.FC = () => {
         </div>
 
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="font-soyuz text-lg sm:text-2xl text-white tracking-wider leading-none crt-glow-text m-0">
-              {SITE_CONFIG.producerName}
-            </h1>
-            <span className="text-[10px] font-mono-tech px-1.5 py-0.5 rounded bg-zinc-900 text-zinc-300 border border-zinc-700 uppercase tracking-wide">
-              SOUND
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5 mt-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-            <p className="text-[11px] font-mono-tech text-zinc-400 tracking-wide uppercase">
-              ИЩУ АРТИСТОВ ДЛЯ КОЛЛАБА
-            </p>
-          </div>
+          <h1 className="font-soyuz text-lg sm:text-2xl text-white tracking-wider leading-none crt-glow-text m-0">
+            {SITE_CONFIG.producerName}
+          </h1>
+          <p className="text-[11px] font-mono-tech text-zinc-400 mt-1 tracking-widest uppercase">
+            "{SITE_CONFIG.producerTag}"
+          </p>
         </div>
       </div>
 

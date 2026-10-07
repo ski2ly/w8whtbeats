@@ -4,7 +4,8 @@ class AudioEngine {
   private ctx: AudioContext | null = null
   private analyser: AnalyserNode | null = null
   private masterGain: GainNode | null = null
-  private currentSource: AudioBufferSourceNode | null = null
+  private synthGain: GainNode | null = null
+  private activeNodes: Array<AudioScheduledSourceNode> = []
   private htmlAudio: HTMLAudioElement | null = null
   private loopTimer: number | null = null
   private isSynthesizing = false
@@ -12,6 +13,7 @@ class AudioEngine {
   private currentBeatId: string | null = null
   private startTime = 0
   private onEndedCallback: (() => void) | null = null
+  private tagAudio: HTMLAudioElement | null = null
 
   private initContext() {
     if (!this.ctx) {
@@ -49,6 +51,7 @@ class AudioEngine {
   // Play a beat: if audioUrl exists, loads it. Otherwise generates procedural trap loop!
   public async playBeat(beat: Beat, onEnded?: () => void) {
     this.initContext()
+    // 1. Fully stop any current sound
     this.stop()
 
     this.currentBeatId = beat.id
@@ -100,10 +103,16 @@ class AudioEngine {
     }
   }
 
-  // Procedural Dark Trap / Drill Audio Generator (808, punchy kick, snappy drill hi-hats, minor bells)
+  // Procedural Dark Trap / Drill Audio Generator
   private playProceduralDarkTrap(beat: Beat) {
     if (!this.ctx || !this.analyser) return
     this.isSynthesizing = true
+
+    // Create a dedicated synth gain node connected to analyser
+    // This allows instant cutoff of all scheduled sounds when pausing or switching!
+    this.synthGain = this.ctx.createGain()
+    this.synthGain.gain.setValueAtTime(1, this.ctx.currentTime)
+    this.synthGain.connect(this.analyser)
 
     const bpm = beat.bpm || 140
     const beatDuration = 60 / bpm
@@ -122,12 +131,10 @@ class AudioEngine {
       'Am': 110.0,
     }
     const rootFreq = noteFrequencies[beat.key] || 73.42 // D2 default
-
     const scheduledTime = this.ctx.currentTime
 
-    // Schedule dark trap 16-step patterns
     const schedulePattern = (startTime: number) => {
-      if (!this.isPlaying || !this.isSynthesizing || !this.ctx) return
+      if (!this.isPlaying || !this.isSynthesizing || !this.ctx || !this.synthGain) return
 
       for (let step = 0; step < totalSteps; step++) {
         const time = startTime + step * stepDuration
@@ -139,7 +146,7 @@ class AudioEngine {
           this.triggerKick(time)
         }
 
-        // 2. Snare / Clap (on 3rd beat of each bar: step 8, 24, 40, 56)
+        // 2. Snare (on 3rd beat of each bar: step 8, 24, 40, 56)
         if (step % 16 === 8) {
           this.triggerSnare(time)
         }
@@ -173,14 +180,13 @@ class AudioEngine {
     schedulePattern(scheduledTime + 0.05)
   }
 
-  // 808 Sub Bass with saturation
+  // 808 Sub Bass
   private trigger808(time: number, freq: number, duration: number) {
-    if (!this.ctx || !this.analyser) return
+    if (!this.ctx || !this.synthGain) return
     const osc = this.ctx.createOscillator()
     const gain = this.ctx.createGain()
 
     osc.type = 'sine'
-    // Pitch envelope drop
     osc.frequency.setValueAtTime(freq * 1.5, time)
     osc.frequency.exponentialRampToValueAtTime(freq, time + 0.08)
 
@@ -188,15 +194,16 @@ class AudioEngine {
     gain.gain.exponentialRampToValueAtTime(0.001, time + duration)
 
     osc.connect(gain)
-    gain.connect(this.analyser)
+    gain.connect(this.synthGain)
 
+    this.activeNodes.push(osc)
     osc.start(time)
     osc.stop(time + duration)
   }
 
   // Punchy Kick
   private triggerKick(time: number) {
-    if (!this.ctx || !this.analyser) return
+    if (!this.ctx || !this.synthGain) return
     const osc = this.ctx.createOscillator()
     const gain = this.ctx.createGain()
 
@@ -207,17 +214,17 @@ class AudioEngine {
     gain.gain.exponentialRampToValueAtTime(0.001, time + 0.12)
 
     osc.connect(gain)
-    gain.connect(this.analyser)
+    gain.connect(this.synthGain)
 
+    this.activeNodes.push(osc)
     osc.start(time)
-    osc.stop(time + 0.12)
+    osc.stop(time + durationOrDefault(0.12))
   }
 
   // Snappy Trap Snare
   private triggerSnare(time: number) {
-    if (!this.ctx || !this.analyser) return
-    // Noise buffer
-    const bufferSize = this.ctx.sampleRate * 0.15
+    if (!this.ctx || !this.synthGain) return
+    const bufferSize = Math.floor(this.ctx.sampleRate * 0.15)
     const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate)
     const data = buffer.getChannelData(0)
     for (let i = 0; i < bufferSize; i++) {
@@ -237,15 +244,16 @@ class AudioEngine {
 
     noise.connect(filter)
     filter.connect(gain)
-    gain.connect(this.analyser)
+    gain.connect(this.synthGain)
 
+    this.activeNodes.push(noise)
     noise.start(time)
   }
 
-  // Fast Drill Hi-Hat
+  // Drill Hi-Hat
   private triggerHiHat(time: number, accent: boolean) {
-    if (!this.ctx || !this.analyser) return
-    const bufferSize = this.ctx.sampleRate * 0.04
+    if (!this.ctx || !this.synthGain) return
+    const bufferSize = Math.floor(this.ctx.sampleRate * 0.04)
     const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate)
     const data = buffer.getChannelData(0)
     for (let i = 0; i < bufferSize; i++) {
@@ -265,14 +273,15 @@ class AudioEngine {
 
     noise.connect(filter)
     filter.connect(gain)
-    gain.connect(this.analyser)
+    gain.connect(this.synthGain)
 
+    this.activeNodes.push(noise)
     noise.start(time)
   }
 
   // Dark Bell / Pluck
   private triggerDarkPluck(time: number, freq: number) {
-    if (!this.ctx || !this.analyser) return
+    if (!this.ctx || !this.synthGain) return
     const osc = this.ctx.createOscillator()
     const gain = this.ctx.createGain()
 
@@ -283,18 +292,38 @@ class AudioEngine {
     gain.gain.exponentialRampToValueAtTime(0.001, time + 0.45)
 
     osc.connect(gain)
-    gain.connect(this.analyser)
+    gain.connect(this.synthGain)
 
+    this.activeNodes.push(osc)
     osc.start(time)
     osc.stop(time + 0.45)
   }
 
-  // Voice Tag simulation ("Wait... What? Skilly")
+  // Authentic User Voice Tag ("skilly tag.wav")
   public playVoiceTag() {
     this.initContext()
-    if (!this.ctx || !this.analyser) return
 
-    // Synth robotic filter sweep simulating retro speech tag
+    if (this.tagAudio) {
+      this.tagAudio.pause()
+      this.tagAudio = null
+    }
+
+    // Play real audio tag from public/audio/skilly-tag.wav
+    this.tagAudio = new Audio('/audio/skilly-tag.wav')
+    if (this.ctx && this.analyser) {
+      try {
+        const src = this.ctx.createMediaElementSource(this.tagAudio)
+        src.connect(this.analyser)
+      } catch {}
+    }
+    this.tagAudio.play().catch(() => {
+      // Fallback synthetic sweep if file cannot be loaded
+      this.playSyntheticVoiceTag()
+    })
+  }
+
+  private playSyntheticVoiceTag() {
+    if (!this.ctx || !this.analyser) return
     const osc = this.ctx.createOscillator()
     const filter = this.ctx.createBiquadFilter()
     const gain = this.ctx.createGain()
@@ -321,22 +350,40 @@ class AudioEngine {
     osc.stop(now + 0.8)
   }
 
+  // Instant full stop of ALL audio sources
   public stop() {
+    // 1. Clear loop timeout
     if (this.loopTimer) {
       clearTimeout(this.loopTimer)
       this.loopTimer = null
     }
 
-    if (this.htmlAudio) {
-      this.htmlAudio.pause()
-      this.htmlAudio = null
+    // 2. Disconnect and silence synthGain immediately
+    if (this.synthGain && this.ctx) {
+      try {
+        this.synthGain.gain.setValueAtTime(0, this.ctx.currentTime)
+        this.synthGain.disconnect()
+      } catch {}
+      this.synthGain = null
     }
 
-    if (this.currentSource) {
+    // 3. Stop and disconnect all queued scheduled nodes
+    for (const node of this.activeNodes) {
       try {
-        this.currentSource.stop()
+        node.stop()
+        node.disconnect()
       } catch {}
-      this.currentSource = null
+    }
+    this.activeNodes = []
+
+    // 4. Stop HTML audio
+    if (this.htmlAudio) {
+      try {
+        this.htmlAudio.pause()
+        this.htmlAudio.currentTime = 0
+        this.htmlAudio.src = ''
+      } catch {}
+      this.htmlAudio = null
     }
 
     this.isSynthesizing = false
@@ -349,6 +396,10 @@ class AudioEngine {
       this.masterGain.gain.setValueAtTime(Math.max(0, Math.min(1, volume)), this.ctx.currentTime)
     }
   }
+}
+
+function durationOrDefault(d: number) {
+  return d
 }
 
 export const audioEngine = new AudioEngine()

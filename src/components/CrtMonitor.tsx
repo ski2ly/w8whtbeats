@@ -96,7 +96,7 @@ export const CrtMonitor: React.FC<CrtMonitorProps> = ({
   const handlePlayTag = () => {
     if (!isPoweredOn) return
     audioEngine.playVoiceTag()
-    setOsdMessage('VOICE TAG: WAIT... WHAT? SKILLY')
+    setOsdMessage('TAG: "W8WHT?"')
     setTimeout(() => setOsdMessage(null), 2000)
   }
 
@@ -218,10 +218,10 @@ export const CrtMonitor: React.FC<CrtMonitorProps> = ({
                   </h3>
                   <div className="flex items-center justify-center gap-2 mt-0.5">
                     <span className="text-[11px] font-mono-tech px-2 py-0.5 rounded bg-zinc-800/80 text-zinc-300 border border-zinc-700">
-                      {currentBeat.genre}
+                      {currentBeat.bpm} BPM // {currentBeat.key}
                     </span>
                     <span className="text-[10px] font-mono-tech text-zinc-400">
-                      15s HQ PREVIEW
+                      15s PREVIEW
                     </span>
                   </div>
                 </div>
