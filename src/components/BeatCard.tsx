@@ -71,11 +71,21 @@ export const BeatCard: React.FC<BeatCardProps> = ({
               )}
             </div>
 
-            {/* Clean Specs: BPM & Key ONLY */}
+            {/* Clean Specs: BPM, Key and Duration */}
             <div className="flex items-center gap-2 mt-0.5 font-mono-tech text-xs text-zinc-400">
               <span className="text-zinc-300 font-semibold">{beat.bpm} BPM</span>
               <span className="text-zinc-600">•</span>
               <span className="text-zinc-300">{beat.key}</span>
+              {beat.duration > 0 && (
+                <>
+                  <span className="text-zinc-600">•</span>
+                  <span className="text-zinc-400">
+                    {beat.duration < 60
+                      ? `${Math.round(beat.duration)}s`
+                      : `${Math.floor(beat.duration / 60)}:${Math.floor(beat.duration % 60).toString().padStart(2, '0')}`}
+                  </span>
+                </>
+              )}
             </div>
           </div>
         </div>

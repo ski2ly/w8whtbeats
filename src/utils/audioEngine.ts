@@ -14,6 +14,8 @@ class AudioEngine {
   private currentBeatId: string | null = null
   private startTime = 0
   private onEndedCallback: (() => void) | null = null
+  private onDurationCallback: ((duration: number) => void) | null = null
+  private trackDuration = 0
   private tagAudio: HTMLAudioElement | null = null
   private tagTimer: number | null = null
 
@@ -82,6 +84,27 @@ class AudioEngine {
     return this.isLooping
   }
 
+  public getCurrentTime(): number {
+    if (this.htmlAudio && !isNaN(this.htmlAudio.currentTime)) {
+      return this.htmlAudio.currentTime
+    }
+    if (this.isPlaying && this.ctx) {
+      const elapsed = this.ctx.currentTime - this.startTime
+      if (this.trackDuration > 0) {
+        return this.isLooping ? (elapsed % this.trackDuration) : Math.min(elapsed, this.trackDuration)
+      }
+      return elapsed
+    }
+    return 0
+  }
+
+  public getDuration(): number {
+    if (this.htmlAudio && !isNaN(this.htmlAudio.duration) && this.htmlAudio.duration > 0) {
+      return this.htmlAudio.duration
+    }
+    return this.trackDuration || 0
+  }
+
   public setLoop(loop: boolean) {
     this.isLooping = loop
     if (this.htmlAudio) {
@@ -89,41 +112,39 @@ class AudioEngine {
     }
   }
 
-  // Play a beat: if audioUrl exists, loads it. Otherwise generates procedural trap loop!
-  public async playBeat(beat: Beat, onEnded?: () => void) {
+  // Play a beat: loads real audio file. If unavailable or blocked, falls back to procedural synth
+  public async playBeat(beat: Beat, onEnded?: () => void, onDuration?: (duration: number) => void) {
     this.initContext()
     // 1. Fully stop any current sound
     this.stop()
 
     this.currentBeatId = beat.id
     this.onEndedCallback = onEnded || null
+    this.onDurationCallback = onDuration || null
+    this.trackDuration = beat.duration || 0
     this.isPlaying = true
     this.startTime = this.ctx!.currentTime
 
-    // Check if an external audio file exists
-    const audioUrl = beat.audioUrl || `/audio/${beat.id}.mp3`
-    const audioAvailable = await this.checkAudioExists(audioUrl)
-
-    if (audioAvailable) {
-      this.playHtmlAudio(audioUrl)
-    } else {
-      this.playProceduralDarkTrap(beat)
-    }
+    const audioUrl = beat.audioUrl || `/beats/${encodeURIComponent(beat.title)}.mp3`
+    this.playHtmlAudio(audioUrl, beat)
   }
 
-  private async checkAudioExists(url: string): Promise<boolean> {
-    try {
-      const res = await fetch(url, { method: 'HEAD' })
-      return res.ok
-    } catch {
-      return false
-    }
-  }
-
-  private playHtmlAudio(url: string) {
+  private playHtmlAudio(url: string, beat: Beat) {
     this.htmlAudio = new Audio(url)
     this.htmlAudio.crossOrigin = 'anonymous'
     this.htmlAudio.loop = this.isLooping
+
+    const syncDuration = () => {
+      if (this.htmlAudio && Number.isFinite(this.htmlAudio.duration) && this.htmlAudio.duration > 0) {
+        this.trackDuration = this.htmlAudio.duration
+        if (this.onDurationCallback) {
+          this.onDurationCallback(this.htmlAudio.duration)
+        }
+      }
+    }
+
+    this.htmlAudio.onloadedmetadata = syncDuration
+    this.htmlAudio.ondurationchange = syncDuration
 
     if (this.ctx && this.analyser) {
       try {
@@ -135,8 +156,8 @@ class AudioEngine {
     }
 
     this.htmlAudio.play().catch(() => {
-      // If blocked, fallback to synth
-      this.playProceduralDarkTrap({ bpm: 140, key: 'Fm' } as Beat)
+      // If blocked or missing, fallback to synth
+      this.playProceduralDarkTrap(beat)
     })
 
     this.htmlAudio.onended = () => {
@@ -206,9 +227,10 @@ class AudioEngine {
         }
       }
 
-      // Schedule next loop or end after 15s preview (unless loop is active)
+      // Schedule next loop or end after track duration (unless loop is active)
+      const targetDuration = beat.duration > 0 ? beat.duration : 15
       const elapsed = this.ctx.currentTime - this.startTime
-      if (this.isLooping || elapsed < 14.5) {
+      if (this.isLooping || elapsed < targetDuration - 0.5) {
         this.loopTimer = window.setTimeout(() => {
           if (this.isPlaying && this.isSynthesizing) {
             schedulePattern(this.ctx!.currentTime + 0.05)

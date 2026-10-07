@@ -73,6 +73,15 @@ const server = http.createServer((req, res) => {
   // 2. Dynamic Live Container API: /api/beats
   if (pathname === '/api/beats') {
     try {
+      const manifestPath = path.resolve(__dirname, 'public/beats.json')
+      if (fs.existsSync(manifestPath)) {
+        res.writeHead(200, {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+        })
+        return res.end(fs.readFileSync(manifestPath, 'utf-8'))
+      }
+
       const files = fs
         .readdirSync(BEATS_DIR)
         .filter((file) => {

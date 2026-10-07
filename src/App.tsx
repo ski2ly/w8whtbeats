@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { Beat } from './types/beat'
-import { BEATS_CATALOG } from './data/beats'
 import { getInitialBeats, fetchLiveContainerBeats } from './utils/beatLoader'
 import { audioEngine } from './utils/audioEngine'
 import { Header } from './components/Header'
@@ -16,6 +15,17 @@ export function App() {
   const [isPoweredOn, setIsPoweredOn] = useState(false)
   const [dealBeat, setDealBeat] = useState<Beat | null>(null)
 
+  // Dynamic duration updater when real audio duration is probed by browser
+  const handleUpdateBeatDuration = useCallback((beatId: string, duration: number) => {
+    setBeats((prev) =>
+      prev.map((b) =>
+        b.id === beatId && Math.abs((b.duration || 0) - duration) > 0.1
+          ? { ...b, duration: +duration.toFixed(2) }
+          : b
+      )
+    )
+  }, [])
+
   // Auto-sync beats from container/folder
   useEffect(() => {
     let isMounted = true
@@ -24,25 +34,35 @@ export function App() {
       const live = await fetchLiveContainerBeats()
       if (isMounted && live.length > 0) {
         setBeats((prev) => {
-          // Compare if changed to avoid unnecessary re-renders
-          const prevIds = prev.map((b) => b.id).join(',')
-          const nextIds = live.map((b) => b.id).join(',')
-          return prevIds === nextIds ? prev : live
+          const prevSig = prev.map((b) => `${b.id}:${b.duration}`).join(',')
+          const nextSig = live.map((b) => `${b.id}:${b.duration}`).join(',')
+          return prevSig === nextSig ? prev : live
         })
       }
     }
 
     loadBeats()
 
-    // Periodically sync every 4s to catch newly dropped files
-    const interval = window.setInterval(loadBeats, 4000)
+    // Periodically sync every 3s to catch newly dropped files
+    const interval = window.setInterval(loadBeats, 3000)
     return () => {
       isMounted = false
       clearInterval(interval)
     }
   }, [])
 
-  const currentBeat = beats[currentBeatIndex] || beats[0] || BEATS_CATALOG[0]
+  const EMPTY_BEAT: Beat = {
+    id: 'empty',
+    title: 'НЕТ ТРЕКОВ',
+    bpm: 140,
+    key: 'Fm',
+    genre: 'Hood Trap',
+    tags: ['Folder empty'],
+    duration: 0,
+    status: 'available',
+  }
+
+  const currentBeat = beats[currentBeatIndex] || beats[0] || EMPTY_BEAT
 
   // Turn On TV sequence with authentic glitch + 50% faded tag
   const handleTurnOn = useCallback(() => {
@@ -64,6 +84,8 @@ export function App() {
 
   // Handle play / pause toggle
   const handleTogglePlay = useCallback(() => {
+    if (beats.length === 0) return
+
     // If TV is off, power it on first!
     if (!isPoweredOn) {
       handleTurnOn()
@@ -74,12 +96,14 @@ export function App() {
       audioEngine.stop()
       setIsPlaying(false)
     } else {
-      audioEngine.playBeat(currentBeat, () => {
-        setIsPlaying(false)
-      })
+      audioEngine.playBeat(
+        currentBeat,
+        () => setIsPlaying(false),
+        (dur) => handleUpdateBeatDuration(currentBeat.id, dur)
+      )
       setIsPlaying(true)
     }
-  }, [isPoweredOn, isPlaying, currentBeat, handleTurnOn])
+  }, [isPoweredOn, isPlaying, currentBeat, beats.length, handleTurnOn, handleUpdateBeatDuration])
 
   // Select a specific beat from list
   const handleSelectBeat = useCallback(
@@ -92,9 +116,11 @@ export function App() {
         // If TV was off, turn it on and start playing this track!
         if (!isPoweredOn) {
           handleTurnOn()
-          audioEngine.playBeat(beat, () => {
-            setIsPlaying(false)
-          })
+          audioEngine.playBeat(
+            beat,
+            () => setIsPlaying(false),
+            (dur) => handleUpdateBeatDuration(beat.id, dur)
+          )
           setIsPlaying(true)
           return
         }
@@ -104,39 +130,49 @@ export function App() {
           audioEngine.stop()
           setIsPlaying(false)
         } else {
-          audioEngine.playBeat(beat, () => {
-            setIsPlaying(false)
-          })
+          audioEngine.playBeat(
+            beat,
+            () => setIsPlaying(false),
+            (dur) => handleUpdateBeatDuration(beat.id, dur)
+          )
           setIsPlaying(true)
         }
       }
     },
-    [beats, currentBeat, isPlaying, isPoweredOn, handleTurnOn]
+    [beats, currentBeat, isPlaying, isPoweredOn, handleTurnOn, handleUpdateBeatDuration]
   )
 
   // Switch to next channel/beat
   const handleNextBeat = useCallback(() => {
-    if (!isPoweredOn) return
+    if (!isPoweredOn || beats.length === 0) return
     audioEngine.playSwitchClick()
     const nextIdx = (currentBeatIndex + 1) % beats.length
     setCurrentBeatIndex(nextIdx)
     const nextBeat = beats[nextIdx]
     if (isPlaying) {
-      audioEngine.playBeat(nextBeat, () => setIsPlaying(false))
+      audioEngine.playBeat(
+        nextBeat,
+        () => setIsPlaying(false),
+        (dur) => handleUpdateBeatDuration(nextBeat.id, dur)
+      )
     }
-  }, [currentBeatIndex, beats, isPlaying, isPoweredOn])
+  }, [currentBeatIndex, beats, isPlaying, isPoweredOn, handleUpdateBeatDuration])
 
   // Switch to prev channel/beat
   const handlePrevBeat = useCallback(() => {
-    if (!isPoweredOn) return
+    if (!isPoweredOn || beats.length === 0) return
     audioEngine.playSwitchClick()
     const prevIdx = (currentBeatIndex - 1 + beats.length) % beats.length
     setCurrentBeatIndex(prevIdx)
     const prevBeat = beats[prevIdx]
     if (isPlaying) {
-      audioEngine.playBeat(prevBeat, () => setIsPlaying(false))
+      audioEngine.playBeat(
+        prevBeat,
+        () => setIsPlaying(false),
+        (dur) => handleUpdateBeatDuration(prevBeat.id, dur)
+      )
     }
-  }, [currentBeatIndex, beats, isPlaying, isPoweredOn])
+  }, [currentBeatIndex, beats, isPlaying, isPoweredOn, handleUpdateBeatDuration])
 
   // Keyboard controls (Space for play/pause, Arrow keys for channels)
   useEffect(() => {

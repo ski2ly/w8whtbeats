@@ -46,25 +46,22 @@ export const CrtMonitor: React.FC<CrtMonitorProps> = ({
   const [playbackTime, setPlaybackTime] = useState(0)
   const [osdMessage, setOsdMessage] = useState<string | null>(null)
 
-  // Track playback time counter up to 15 seconds
+  // Synchronize playback time precisely with audioEngine hardware clock (60fps, zero drift)
   useEffect(() => {
-    let interval: number | null = null
+    let animId: number | null = null
     if (isPlaying && isPoweredOn) {
-      interval = window.setInterval(() => {
-        setPlaybackTime((prev) => {
-          if (prev >= currentBeat.duration) {
-            return isLooping ? 0 : currentBeat.duration
-          }
-          return +(prev + 0.1).toFixed(1)
-        })
-      }, 100)
+      const update = () => {
+        setPlaybackTime(audioEngine.getCurrentTime())
+        animId = requestAnimationFrame(update)
+      }
+      animId = requestAnimationFrame(update)
     } else {
-      if (!isPlaying) setPlaybackTime(0)
+      setPlaybackTime(0)
     }
     return () => {
-      if (interval) clearInterval(interval)
+      if (animId) cancelAnimationFrame(animId)
     }
-  }, [isPlaying, isPoweredOn, currentBeat, isLooping])
+  }, [isPlaying, isPoweredOn])
 
   // Show temporary OSD message on channel change (only if powered on)
   useEffect(() => {
@@ -125,10 +122,26 @@ export const CrtMonitor: React.FC<CrtMonitorProps> = ({
     setTimeout(() => setOsdMessage(null), 2000)
   }
 
+  const totalDuration = currentBeat.duration || (isPlaying ? audioEngine.getDuration() : 0) || 0
+
   const formatTime = (seconds: number) => {
-    const s = Math.floor(seconds)
-    const ms = Math.floor((seconds - s) * 10)
-    return `00:${s < 10 ? '0' : ''}${s}.${ms}`
+    if (!Number.isFinite(seconds) || seconds < 0) seconds = 0
+    const m = Math.floor(seconds / 60)
+    const s = Math.floor(seconds % 60)
+    const ms = Math.floor((seconds - Math.floor(seconds)) * 10)
+    const mm = m < 10 ? `0${m}` : `${m}`
+    const ss = s < 10 ? `0${s}` : `${s}`
+    return `${mm}:${ss}.${ms}`
+  }
+
+  const formatBadgeDuration = (seconds: number) => {
+    if (!Number.isFinite(seconds) || seconds <= 0) return 'FULL TRACK'
+    if (seconds < 60) {
+      return `${Math.round(seconds)}s PREVIEW`
+    }
+    const m = Math.floor(seconds / 60)
+    const s = Math.floor(seconds % 60)
+    return `${m}:${s < 10 ? '0' : ''}${s} PREVIEW`
   }
 
   return (
@@ -187,7 +200,7 @@ export const CrtMonitor: React.FC<CrtMonitorProps> = ({
 
                 <div className="text-right flex flex-col items-end">
                   <span className="text-white font-mono-tech text-sm sm:text-base font-bold crt-glow-text">
-                    {formatTime(playbackTime)} / 00:{currentBeat.duration}.0
+                    {formatTime(playbackTime)} / {formatTime(totalDuration)}
                   </span>
                   <span className="text-xs font-mono-tech text-zinc-400 tracking-normal">
                     {currentBeat.bpm} BPM // {currentBeat.key}
@@ -248,7 +261,7 @@ export const CrtMonitor: React.FC<CrtMonitorProps> = ({
                       {currentBeat.bpm} BPM // {currentBeat.key}
                     </span>
                     <span className="text-[10px] font-mono-tech text-zinc-400">
-                      15s PREVIEW
+                      {formatBadgeDuration(totalDuration)}
                     </span>
                   </div>
                 </div>
@@ -332,14 +345,14 @@ export const CrtMonitor: React.FC<CrtMonitorProps> = ({
               } disabled:opacity-30`}
             >
               {isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}
-              <span>{isPlaying ? 'PAUSE' : 'PLAY PREVIEW'}</span>
+              <span>{isPlaying ? 'PAUSE' : 'PLAY'}</span>
             </button>
 
             {/* Loop Toggle Button */}
             <button
               onClick={handleToggleLoop}
               disabled={!isPoweredOn}
-              title="Зациклить 15 секунд"
+              title={isLooping ? 'Выключить повтор' : 'Зациклить воспроизведение (LOOP)'}
               className={`p-2 rounded-xl border font-mono-tech text-xs transition-all flex items-center gap-1.5 active:scale-95 ${
                 isLooping
                   ? 'bg-white text-black border-white shadow-[0_0_12px_rgba(255,255,255,0.4)] font-bold'

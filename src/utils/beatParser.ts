@@ -4,15 +4,15 @@ import type { Beat, Genre } from '../types/beat'
  * Parses beat audio filename in the format:
  * "Название_тональность_бпм"
  * Examples:
- * - "BLOCK EYES_Am_160BPM.mp3" -> Title: "BLOCK EYES", Key: "Am", BPM: 160
- * - "Phantom_C#m_190BPM.wav"   -> Title: "Phantom", Key: "C#m", BPM: 190
- * - "GRAVEYARD SHIFT_Fm_140.mp3" -> Title: "GRAVEYARD SHIFT", Key: "Fm", BPM: 140
- * - "NO_MERCY_D#m_145BPM.mp3" -> Title: "NO MERCY", Key: "D#m", BPM: 145
+ * - "Phantom_A#m_190.mp3"        -> Title: "PHANTOM", Key: "A#m", BPM: 190
+ * - "Слабость_Fm_140.mp3"        -> Title: "СЛАБОСТЬ", Key: "Fm", BPM: 140
+ * - "Sunrise_Dm_179BBPM.mp3"     -> Title: "SUNRISE", Key: "Dm", BPM: 179
+ * - "baby_drill_Gm_123BPM.mp3"   -> Title: "BABY DRILL", Key: "Gm", BPM: 123
  */
-export function parseBeatFilename(rawFilename: string, audioUrl: string): Beat {
-  // Strip path (e.g. /beats/ or C:\beats\)
+export function parseBeatFilename(rawFilename: string, audioUrl: string, duration = 0): Beat {
+  // Strip directory paths (e.g. /beats/ or C:\beats\)
   const filenameWithoutPath = rawFilename.split('/').pop()!.split('\\').pop()!
-  
+
   // Strip file extension (.mp3, .wav, .m4a, .ogg, .flac)
   const baseName = filenameWithoutPath.replace(/\.[^/.]+$/, '').trim()
 
@@ -23,12 +23,12 @@ export function parseBeatFilename(rawFilename: string, audioUrl: string): Beat {
   let bpm = 140
 
   if (parts.length >= 3) {
-    // Standard format: [Title, ..., Key, BPM]
+    // Format: [Title, ..., Key, BPM]
     const rawBpm = parts[parts.length - 1]
     const rawKey = parts[parts.length - 2]
     const titleParts = parts.slice(0, parts.length - 2)
 
-    // Check if BPM is indeed in the last position
+    // Parse BPM
     const bpmDigits = rawBpm.replace(/[^0-9]/g, '')
     if (bpmDigits.length > 0) {
       const parsed = parseInt(bpmDigits, 10)
@@ -37,14 +37,14 @@ export function parseBeatFilename(rawFilename: string, audioUrl: string): Beat {
       }
     }
 
-    // Key
+    // Parse Key
     if (rawKey.length > 0) {
       key = formatKey(rawKey)
     }
 
     title = titleParts.join(' ').trim()
   } else if (parts.length === 2) {
-    // Format could be: Title_BPM or Title_Key
+    // Format: Title_BPM or Title_Key
     const part0 = parts[0]
     const part1 = parts[1]
 
@@ -58,14 +58,22 @@ export function parseBeatFilename(rawFilename: string, audioUrl: string): Beat {
     }
   }
 
-  // Fallback title formatting: replace extra underscores/dashes with spaces
+  // Clean uppercase title (supports Russian and English characters)
   const cleanTitle = title.replace(/[-_]+/g, ' ').trim().toUpperCase()
 
-  const id = cleanTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-') || `beat-${Math.random().toString(36).slice(2, 7)}`
+  // Generate deterministic unique ID based on the filename (Unicode letters & numbers)
+  const fileSlug = filenameWithoutPath
+    .toLowerCase()
+    .replace(/\.[^/.]+$/, '')
+    .replace(/[^\p{L}\p{N}]+/gu, '-')
+    .replace(/^-+|-+$/g, '')
 
-  // Inferred genre based on BPM
+  const id = fileSlug || cleanTitle.toLowerCase() || `beat-${Math.random().toString(36).slice(2, 7)}`
+
+  // Inferred genre based on BPM and title
   let genre: Genre = 'Hood Trap'
-  if (bpm >= 145 && bpm <= 155) {
+  const lowerBase = baseName.toLowerCase()
+  if (lowerBase.includes('drill') || (bpm >= 140 && bpm <= 145)) {
     genre = 'Dark Drill'
   } else if (bpm >= 155) {
     genre = 'Hood Trap'
@@ -80,18 +88,17 @@ export function parseBeatFilename(rawFilename: string, audioUrl: string): Beat {
     key,
     genre,
     tags: ['Dark', `${bpm} BPM`, key],
-    duration: 15,
+    duration: typeof duration === 'number' && duration > 0 ? duration : 0,
     audioUrl,
     status: 'available',
   }
 }
 
-// Helper to format musical keys nicely (e.g., "am" -> "Am", "c#m" -> "C#m")
+// Helper to format musical keys nicely (e.g. "a#m" -> "A#m", "A#M" -> "A#m", "dm" -> "Dm")
 function formatKey(raw: string): string {
   const clean = raw.trim()
   if (!clean) return 'Fm'
 
-  // Match root note (A-G with optional # or b) and scale (m, min, maj, etc.)
   const match = clean.match(/^([a-gA-G])([#b]?)(.*)$/)
   if (!match) return clean.toUpperCase()
 
@@ -99,8 +106,14 @@ function formatKey(raw: string): string {
   const accidental = match[2]
   let suffix = match[3].toLowerCase()
 
-  if (suffix === 'min' || suffix === 'minor') suffix = 'm'
-  if (suffix === 'maj' || suffix === 'major') suffix = ' Maj'
+  if (suffix === 'm' || suffix === 'min' || suffix === 'minor') {
+    suffix = 'm'
+  } else if (suffix === 'maj' || suffix === 'major') {
+    suffix = ' Maj'
+  } else if (suffix === '') {
+    // If no suffix, default to minor if producer didn't specify, or keep clean
+    suffix = ''
+  }
 
   return `${root}${accidental}${suffix}`
 }

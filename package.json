@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "sync-beats": "node scripts/sync-beats.js",
+    "build": "node scripts/sync-beats.js && tsc -b && vite build",
+    "deploy": "node scripts/deploy.js",
     "start": "node server.js",
-    "deploy": "git add -A && git commit -m \"Update beats\" && git push",
     "lint": "oxlint",
     "preview": "vite preview"
   },
