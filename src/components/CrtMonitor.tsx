@@ -17,7 +17,10 @@ import {
 interface CrtMonitorProps {
   currentBeat: Beat
   isPlaying: boolean
+  isPoweredOn: boolean
   onTogglePlay: () => void
+  onPowerToggle: () => void
+  onTurnOn: () => void
   onNextBeat: () => void
   onPrevBeat: () => void
   onSelectTrack: (beat: Beat) => void
@@ -28,14 +31,15 @@ interface CrtMonitorProps {
 export const CrtMonitor: React.FC<CrtMonitorProps> = ({
   currentBeat,
   isPlaying,
+  isPoweredOn,
   onTogglePlay,
+  onPowerToggle,
+  onTurnOn,
   onNextBeat,
   onPrevBeat,
   channelIndex,
   totalChannels,
 }) => {
-  // Start in Standby mode for the immersive cinematic power-on moment
-  const [isPoweredOn, setIsPoweredOn] = useState(false)
   const [isLooping, setIsLooping] = useState(false)
   const [isMuted, setIsMuted] = useState(false)
   const [volume, setVolume] = useState(0.85)
@@ -70,26 +74,16 @@ export const CrtMonitor: React.FC<CrtMonitorProps> = ({
     return () => clearTimeout(timer)
   }, [channelIndex, currentBeat, isPoweredOn])
 
-  // Cinematic Turn On: play relay click + skilly voice tag + trigger CRT on animation
-  const handleTurnOn = () => {
-    audioEngine.playPowerClick()
-    audioEngine.playVoiceTag()
-    setIsPoweredOn(true)
-    setOsdMessage('W8WHT? // ONLINE')
-    setTimeout(() => setOsdMessage(null), 2200)
-  }
-
-  const handlePowerToggle = () => {
-    audioEngine.playPowerClick()
+  // When TV turns on, show welcome OSD
+  useEffect(() => {
     if (isPoweredOn) {
-      if (isPlaying) {
-        onTogglePlay()
-      }
-      setIsPoweredOn(false)
+      setOsdMessage('W8WHT? // ONLINE')
+      const timer = setTimeout(() => setOsdMessage(null), 2200)
+      return () => clearTimeout(timer)
     } else {
-      handleTurnOn()
+      setPlaybackTime(0)
     }
-  }
+  }, [isPoweredOn])
 
   const handleToggleLoop = () => {
     if (!isPoweredOn) return
@@ -101,12 +95,10 @@ export const CrtMonitor: React.FC<CrtMonitorProps> = ({
   }
 
   const handleNext = () => {
-    audioEngine.playSwitchClick()
     onNextBeat()
   }
 
   const handlePrev = () => {
-    audioEngine.playSwitchClick()
     onPrevBeat()
   }
 
@@ -283,7 +275,7 @@ export const CrtMonitor: React.FC<CrtMonitorProps> = ({
 
               {/* Central Power-On Button */}
               <button
-                onClick={handleTurnOn}
+                onClick={onTurnOn}
                 className="group px-6 py-3 rounded-2xl bg-zinc-900 hover:bg-white text-zinc-300 hover:text-black border border-zinc-700/80 hover:border-white font-mono-tech text-xs sm:text-sm font-bold tracking-widest uppercase transition-all duration-300 shadow-[0_0_25px_rgba(0,0,0,0.9)] active:scale-95 flex items-center gap-2"
               >
                 <Power size={15} className="text-red-400 group-hover:text-black transition-colors" />
@@ -300,7 +292,7 @@ export const CrtMonitor: React.FC<CrtMonitorProps> = ({
         {/* Physical TV Front-Panel Controls & Tactile Knobs */}
         <div className="mt-3 sm:mt-4 pt-3 border-t border-zinc-800/80 flex flex-wrap items-center justify-between gap-2.5">
           
-          {/* Channel Control Buttons (CH+ / CH-) with sound click */}
+          {/* Channel Control Buttons (CH+ / CH-) */}
           <div className="flex items-center gap-1.5 bg-zinc-900/90 p-1 rounded-xl border border-zinc-800 shadow-inner">
             <button
               onClick={handlePrev}
@@ -389,7 +381,7 @@ export const CrtMonitor: React.FC<CrtMonitorProps> = ({
 
             {/* Master Power Switch */}
             <button
-              onClick={handlePowerToggle}
+              onClick={onPowerToggle}
               title={isPoweredOn ? 'Выключить ТВ' : 'Включить ТВ'}
               className={`p-2.5 rounded-xl border transition-all active:scale-95 shadow-md ${
                 isPoweredOn

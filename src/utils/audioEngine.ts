@@ -16,6 +16,10 @@ class AudioEngine {
   private onEndedCallback: (() => void) | null = null
   private tagAudio: HTMLAudioElement | null = null
 
+  // Cached buffers for zero latency and precise envelope control
+  private tagBuffer: AudioBuffer | null = null
+  private glitchBuffer: AudioBuffer | null = null
+
   private initContext() {
     if (!this.ctx) {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
@@ -29,11 +33,35 @@ class AudioEngine {
 
       this.analyser.connect(this.masterGain)
       this.masterGain.connect(this.ctx.destination)
+
+      // Preload buffers
+      this.preloadAudioBuffers()
     }
 
     if (this.ctx.state === 'suspended') {
       this.ctx.resume()
     }
+  }
+
+  private async preloadAudioBuffers() {
+    if (!this.ctx) return
+    try {
+      fetch('/audio/glitch.mp3')
+        .then((res) => res.arrayBuffer())
+        .then((buf) => this.ctx!.decodeAudioData(buf))
+        .then((decoded) => {
+          this.glitchBuffer = decoded
+        })
+        .catch(() => {})
+
+      fetch('/audio/skilly-tag.wav')
+        .then((res) => res.arrayBuffer())
+        .then((buf) => this.ctx!.decodeAudioData(buf))
+        .then((decoded) => {
+          this.tagBuffer = decoded
+        })
+        .catch(() => {})
+    } catch {}
   }
 
   public getAnalyser(): AnalyserNode | null {
@@ -340,75 +368,112 @@ class AudioEngine {
     osc.stop(now + 0.03)
   }
 
-  // TV Power Switch relay click
-  public playPowerClick() {
+  // Cinematic TV Turn-On: Glitch sound + Voice Tag (50% max volume, fade-in & fade-out)
+  public playTurnOnSequence() {
     this.initContext()
-    if (!this.ctx || !this.masterGain) return
+    if (!this.ctx || !this.analyser) return
     const now = this.ctx.currentTime
-    const osc = this.ctx.createOscillator()
-    const gain = this.ctx.createGain()
 
-    osc.type = 'square'
-    osc.frequency.setValueAtTime(140, now)
-    osc.frequency.exponentialRampToValueAtTime(35, now + 0.035)
+    // 1. Play Glitch from public/audio/glitch.mp3
+    if (this.glitchBuffer) {
+      const glitchSource = this.ctx.createBufferSource()
+      glitchSource.buffer = this.glitchBuffer
+      const glitchGain = this.ctx.createGain()
+      glitchGain.gain.setValueAtTime(0.65, now)
+      glitchSource.connect(glitchGain)
+      glitchGain.connect(this.analyser)
+      glitchSource.start(now)
+    } else {
+      const audio = new Audio('/audio/glitch.mp3')
+      audio.volume = 0.65
+      audio.play().catch(() => {})
+    }
 
-    gain.gain.setValueAtTime(0.1, now)
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04)
+    // 2. Play Voice Tag layered with fade in & fade out at 50% volume
+    if (this.tagBuffer) {
+      const tagSource = this.ctx.createBufferSource()
+      tagSource.buffer = this.tagBuffer
+      const duration = this.tagBuffer.duration
 
-    osc.connect(gain)
-    gain.connect(this.masterGain)
+      const tagGain = this.ctx.createGain()
+      // Fade in from 0 to 0.5 over 0.35s
+      tagGain.gain.setValueAtTime(0, now)
+      tagGain.gain.linearRampToValueAtTime(0.5, now + 0.35)
+      // Sustain at 50%
+      const fadeOutStart = Math.max(now + 0.4, now + duration - 0.45)
+      tagGain.gain.setValueAtTime(0.5, fadeOutStart)
+      // Fade out from 0.5 to 0 over 0.45s
+      tagGain.gain.linearRampToValueAtTime(0, now + duration)
 
-    osc.start(now)
-    osc.stop(now + 0.045)
+      tagSource.connect(tagGain)
+      tagGain.connect(this.analyser)
+      tagSource.start(now)
+    } else {
+      const audio = new Audio('/audio/skilly-tag.wav')
+      audio.volume = 0.5
+      audio.play().catch(() => {})
+    }
   }
 
-  // Authentic User Voice Tag ("skilly tag.wav")
+  // Cinematic TV Turn-Off: Turn-off glitch sound + cutoff
+  public playTurnOffSequence() {
+    this.initContext()
+    this.stop()
+    if (!this.ctx || !this.analyser) return
+    const now = this.ctx.currentTime
+
+    if (this.glitchBuffer) {
+      const glitchSource = this.ctx.createBufferSource()
+      glitchSource.buffer = this.glitchBuffer
+      const glitchGain = this.ctx.createGain()
+      glitchGain.gain.setValueAtTime(0.55, now)
+      glitchGain.gain.exponentialRampToValueAtTime(0.001, now + 0.75)
+      glitchSource.connect(glitchGain)
+      glitchGain.connect(this.analyser)
+      glitchSource.start(now)
+      glitchSource.stop(now + 0.8)
+    } else {
+      const audio = new Audio('/audio/glitch.mp3')
+      audio.volume = 0.5
+      audio.play().catch(() => {})
+      setTimeout(() => {
+        try { audio.pause() } catch {}
+      }, 750)
+    }
+  }
+
+  // Authentic User Voice Tag ("skilly tag.wav") with 50% volume + smooth fade
   public playVoiceTag() {
     this.initContext()
-
-    if (this.tagAudio) {
-      this.tagAudio.pause()
-      this.tagAudio = null
-    }
-
-    this.tagAudio = new Audio('/audio/skilly-tag.wav')
-    if (this.ctx && this.analyser) {
-      try {
-        const src = this.ctx.createMediaElementSource(this.tagAudio)
-        src.connect(this.analyser)
-      } catch {}
-    }
-    this.tagAudio.play().catch(() => {
-      this.playSyntheticVoiceTag()
-    })
-  }
-
-  private playSyntheticVoiceTag() {
     if (!this.ctx || !this.analyser) return
-    const osc = this.ctx.createOscillator()
-    const filter = this.ctx.createBiquadFilter()
-    const gain = this.ctx.createGain()
-
     const now = this.ctx.currentTime
-    osc.type = 'sawtooth'
-    osc.frequency.setValueAtTime(160, now)
-    osc.frequency.linearRampToValueAtTime(120, now + 0.25)
-    osc.frequency.setValueAtTime(220, now + 0.35)
-    osc.frequency.exponentialRampToValueAtTime(140, now + 0.7)
 
-    filter.type = 'bandpass'
-    filter.frequency.setValueAtTime(1200, now)
-    filter.Q.value = 4
+    if (this.tagBuffer) {
+      const tagSource = this.ctx.createBufferSource()
+      tagSource.buffer = this.tagBuffer
+      const duration = this.tagBuffer.duration
 
-    gain.gain.setValueAtTime(0.4, now)
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.8)
+      const tagGain = this.ctx.createGain()
+      // Fade in to 50%
+      tagGain.gain.setValueAtTime(0, now)
+      tagGain.gain.linearRampToValueAtTime(0.5, now + 0.3)
+      const fadeOutStart = Math.max(now + 0.35, now + duration - 0.4)
+      tagGain.gain.setValueAtTime(0.5, fadeOutStart)
+      // Fade out to 0
+      tagGain.gain.linearRampToValueAtTime(0, now + duration)
 
-    osc.connect(filter)
-    filter.connect(gain)
-    gain.connect(this.analyser)
-
-    osc.start(now)
-    osc.stop(now + 0.8)
+      tagSource.connect(tagGain)
+      tagGain.connect(this.analyser)
+      tagSource.start(now)
+    } else {
+      if (this.tagAudio) {
+        this.tagAudio.pause()
+        this.tagAudio = null
+      }
+      this.tagAudio = new Audio('/audio/skilly-tag.wav')
+      this.tagAudio.volume = 0.5
+      this.tagAudio.play().catch(() => {})
+    }
   }
 
   // Instant full stop of ALL audio sources

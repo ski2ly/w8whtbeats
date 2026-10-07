@@ -12,12 +12,41 @@ export function App() {
   const [beats] = useState<Beat[]>(BEATS_CATALOG)
   const [currentBeatIndex, setCurrentBeatIndex] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
+  const [isPoweredOn, setIsPoweredOn] = useState(false)
   const [dealBeat, setDealBeat] = useState<Beat | null>(null)
 
   const currentBeat = beats[currentBeatIndex] || beats[0]
 
+  // Turn On TV sequence with authentic glitch + 50% faded tag
+  const handleTurnOn = useCallback(() => {
+    audioEngine.playTurnOnSequence()
+    setIsPoweredOn(true)
+  }, [])
+
+  // Power Toggle (turns off: plays glitch collapse, kills all audio immediately)
+  const handlePowerToggle = useCallback(() => {
+    if (isPoweredOn) {
+      audioEngine.playTurnOffSequence()
+      audioEngine.stop()
+      setIsPlaying(false)
+      setIsPoweredOn(false)
+    } else {
+      handleTurnOn()
+    }
+  }, [isPoweredOn, handleTurnOn])
+
   // Handle play / pause toggle
   const handleTogglePlay = useCallback(() => {
+    // If TV is off, power it on first!
+    if (!isPoweredOn) {
+      handleTurnOn()
+      audioEngine.playBeat(currentBeat, () => {
+        setIsPlaying(false)
+      })
+      setIsPlaying(true)
+      return
+    }
+
     if (isPlaying) {
       audioEngine.stop()
       setIsPlaying(false)
@@ -27,15 +56,26 @@ export function App() {
       })
       setIsPlaying(true)
     }
-  }, [isPlaying, currentBeat])
+  }, [isPoweredOn, isPlaying, currentBeat, handleTurnOn])
 
   // Select a specific beat from list
   const handleSelectBeat = useCallback(
     (beat: Beat) => {
+      audioEngine.playSwitchClick()
       const idx = beats.findIndex((b) => b.id === beat.id)
       if (idx !== -1) {
-        audioEngine.playSwitchClick()
         setCurrentBeatIndex(idx)
+
+        // If TV was off, turn it on and start playing this track!
+        if (!isPoweredOn) {
+          handleTurnOn()
+          audioEngine.playBeat(beat, () => {
+            setIsPlaying(false)
+          })
+          setIsPlaying(true)
+          return
+        }
+
         // If clicking same beat that was already playing, toggle pause
         if (currentBeat.id === beat.id && isPlaying) {
           audioEngine.stop()
@@ -48,11 +88,12 @@ export function App() {
         }
       }
     },
-    [beats, currentBeat, isPlaying]
+    [beats, currentBeat, isPlaying, isPoweredOn, handleTurnOn]
   )
 
   // Switch to next channel/beat
   const handleNextBeat = useCallback(() => {
+    if (!isPoweredOn) return
     audioEngine.playSwitchClick()
     const nextIdx = (currentBeatIndex + 1) % beats.length
     setCurrentBeatIndex(nextIdx)
@@ -60,10 +101,11 @@ export function App() {
     if (isPlaying) {
       audioEngine.playBeat(nextBeat, () => setIsPlaying(false))
     }
-  }, [currentBeatIndex, beats, isPlaying])
+  }, [currentBeatIndex, beats, isPlaying, isPoweredOn])
 
   // Switch to prev channel/beat
   const handlePrevBeat = useCallback(() => {
+    if (!isPoweredOn) return
     audioEngine.playSwitchClick()
     const prevIdx = (currentBeatIndex - 1 + beats.length) % beats.length
     setCurrentBeatIndex(prevIdx)
@@ -71,7 +113,7 @@ export function App() {
     if (isPlaying) {
       audioEngine.playBeat(prevBeat, () => setIsPlaying(false))
     }
-  }, [currentBeatIndex, beats, isPlaying])
+  }, [currentBeatIndex, beats, isPlaying, isPoweredOn])
 
   // Keyboard controls (Space for play/pause, Arrow keys for channels)
   useEffect(() => {
@@ -117,7 +159,10 @@ export function App() {
               <CrtMonitor
                 currentBeat={currentBeat}
                 isPlaying={isPlaying}
+                isPoweredOn={isPoweredOn}
                 onTogglePlay={handleTogglePlay}
+                onPowerToggle={handlePowerToggle}
+                onTurnOn={handleTurnOn}
                 onNextBeat={handleNextBeat}
                 onPrevBeat={handlePrevBeat}
                 onSelectTrack={handleSelectBeat}
@@ -147,7 +192,7 @@ export function App() {
           </div>
         </main>
 
-        {/* Footer with Contract & Royalty Details */}
+        {/* Footer */}
         <Footer />
       </div>
 
