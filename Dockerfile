@@ -21,9 +21,6 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/public ./public
 COPY server.js ./
 
-# Mountable volume for dropping your beats directly into container
-VOLUME ["/app/public/beats"]
-
 EXPOSE 3000
 
 CMD ["node", "server.js"]
