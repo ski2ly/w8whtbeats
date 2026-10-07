@@ -15,6 +15,7 @@ class AudioEngine {
   private startTime = 0
   private onEndedCallback: (() => void) | null = null
   private tagAudio: HTMLAudioElement | null = null
+  private tagTimer: number | null = null
 
   // Cached buffers for zero latency and precise envelope control
   private tagBuffer: AudioBuffer | null = null
@@ -368,28 +369,34 @@ class AudioEngine {
     osc.stop(now + 0.03)
   }
 
-  // Cinematic TV Turn-On: Glitch sound + Voice Tag (50% max volume, fade-in & fade-out)
+  // Cinematic TV Turn-On: Glitch sound (60% vol) + Voice Tag (50% max, fade-in/out) played strictly after glitch
   public playTurnOnSequence() {
     this.initContext()
     if (!this.ctx || !this.analyser) return
     const now = this.ctx.currentTime
 
-    // 1. Play Glitch from public/audio/glitch.mp3
+    // Exact glitch duration is 1.44s
+    const glitchDuration = this.glitchBuffer ? this.glitchBuffer.duration : 1.44
+
+    // 1. Play Glitch from public/audio/glitch.mp3 at exactly 60% volume
     if (this.glitchBuffer) {
       const glitchSource = this.ctx.createBufferSource()
       glitchSource.buffer = this.glitchBuffer
       const glitchGain = this.ctx.createGain()
-      glitchGain.gain.setValueAtTime(0.65, now)
+      glitchGain.gain.setValueAtTime(0.60, now)
       glitchSource.connect(glitchGain)
       glitchGain.connect(this.analyser)
       glitchSource.start(now)
+      this.activeNodes.push(glitchSource)
     } else {
       const audio = new Audio('/audio/glitch.mp3')
-      audio.volume = 0.65
+      audio.volume = 0.60
       audio.play().catch(() => {})
     }
 
-    // 2. Play Voice Tag layered with fade in & fade out at 50% volume
+    // 2. Play Voice Tag strictly AFTER glitch finishes (starts at now + glitchDuration)
+    const tagStartTime = now + glitchDuration
+
     if (this.tagBuffer) {
       const tagSource = this.ctx.createBufferSource()
       tagSource.buffer = this.tagBuffer
@@ -397,21 +404,27 @@ class AudioEngine {
 
       const tagGain = this.ctx.createGain()
       // Fade in from 0 to 0.5 over 0.35s
-      tagGain.gain.setValueAtTime(0, now)
-      tagGain.gain.linearRampToValueAtTime(0.5, now + 0.35)
+      tagGain.gain.setValueAtTime(0, tagStartTime)
+      tagGain.gain.linearRampToValueAtTime(0.5, tagStartTime + 0.35)
       // Sustain at 50%
-      const fadeOutStart = Math.max(now + 0.4, now + duration - 0.45)
+      const fadeOutStart = Math.max(tagStartTime + 0.4, tagStartTime + duration - 0.45)
       tagGain.gain.setValueAtTime(0.5, fadeOutStart)
       // Fade out from 0.5 to 0 over 0.45s
-      tagGain.gain.linearRampToValueAtTime(0, now + duration)
+      tagGain.gain.linearRampToValueAtTime(0, tagStartTime + duration)
 
       tagSource.connect(tagGain)
       tagGain.connect(this.analyser)
-      tagSource.start(now)
+      tagSource.start(tagStartTime)
+      this.activeNodes.push(tagSource)
     } else {
-      const audio = new Audio('/audio/skilly-tag.wav')
-      audio.volume = 0.5
-      audio.play().catch(() => {})
+      if (this.tagTimer) {
+        clearTimeout(this.tagTimer)
+      }
+      this.tagTimer = window.setTimeout(() => {
+        const audio = new Audio('/audio/skilly-tag.wav')
+        audio.volume = 0.5
+        audio.play().catch(() => {})
+      }, Math.round(glitchDuration * 1000))
     }
   }
 
@@ -478,10 +491,14 @@ class AudioEngine {
 
   // Instant full stop of ALL audio sources
   public stop() {
-    // 1. Clear loop timeout
+    // 1. Clear loop & tag timeouts
     if (this.loopTimer) {
       clearTimeout(this.loopTimer)
       this.loopTimer = null
+    }
+    if (this.tagTimer) {
+      clearTimeout(this.tagTimer)
+      this.tagTimer = null
     }
 
     // 2. Disconnect and silence synthGain immediately

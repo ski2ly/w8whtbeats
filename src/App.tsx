@@ -40,10 +40,6 @@ export function App() {
     // If TV is off, power it on first!
     if (!isPoweredOn) {
       handleTurnOn()
-      audioEngine.playBeat(currentBeat, () => {
-        setIsPlaying(false)
-      })
-      setIsPlaying(true)
       return
     }
 
@@ -146,33 +142,32 @@ export function App() {
         <div className="absolute top-10 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-zinc-600/5 blur-[140px] rounded-full" />
       </div>
 
-      <div className="relative z-10 w-full max-w-5xl mx-auto px-3 sm:px-6 flex flex-col flex-1">
+      <div className="relative z-10 w-full max-w-xl mx-auto px-3 sm:px-4 flex flex-col flex-1">
         {/* Top Header */}
         <Header />
 
-        {/* Main Content: Mobile Stack / Desktop 2-Column */}
-        <main className="mt-4 sm:mt-6 flex-1">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            
-            {/* Left Column (Desktop: Sticky CRT Monitor / Mobile: Top Hero) */}
-            <div className="lg:col-span-6 xl:col-span-5 lg:sticky lg:top-4">
-              <CrtMonitor
-                currentBeat={currentBeat}
-                isPlaying={isPlaying}
-                isPoweredOn={isPoweredOn}
-                onTogglePlay={handleTogglePlay}
-                onPowerToggle={handlePowerToggle}
-                onTurnOn={handleTurnOn}
-                onNextBeat={handleNextBeat}
-                onPrevBeat={handlePrevBeat}
-                onSelectTrack={handleSelectBeat}
-                channelIndex={currentBeatIndex}
-                totalChannels={beats.length}
-              />
-            </div>
+        {/* Main Content: CRT Monitor Unit & Drop-Down Drawer */}
+        <main className="mt-4 sm:mt-6 flex-1 flex flex-col items-center">
+          {/* CRT Monitor Unit */}
+          <div className="w-full">
+            <CrtMonitor
+              currentBeat={currentBeat}
+              isPlaying={isPlaying}
+              isPoweredOn={isPoweredOn}
+              onTogglePlay={handleTogglePlay}
+              onPowerToggle={handlePowerToggle}
+              onTurnOn={handleTurnOn}
+              onNextBeat={handleNextBeat}
+              onPrevBeat={handlePrevBeat}
+              onSelectTrack={handleSelectBeat}
+              channelIndex={currentBeatIndex}
+              totalChannels={beats.length}
+            />
+          </div>
 
-            {/* Right Column (Beats Catalog & Filtered List) */}
-            <div className="lg:col-span-6 xl:col-span-7">
+          {/* Tracklist Drawer: Only visible when TV is powered on, smoothly drops down from under the TV */}
+          {isPoweredOn && (
+            <div className="w-full mt-6 animate-drawer-drop">
               <BeatList
                 beats={beats}
                 currentBeat={currentBeat}
@@ -188,8 +183,7 @@ export function App() {
                 onInquireBeat={(beat) => setDealBeat(beat)}
               />
             </div>
-
-          </div>
+          )}
         </main>
 
         {/* Footer */}

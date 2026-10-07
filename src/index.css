@@ -107,30 +107,73 @@
   animation: crt-flicker 0.12s infinite;
 }
 
-/* CRT Turn On Animation */
+/* CRT Turn On Animation (accurately calibrated to 1.44s glitch.mp3 sound) */
 @keyframes crt-turn-on {
   0% {
-    transform: scale(1, 0.005);
+    transform: scale(1, 0.003);
     filter: brightness(30);
     opacity: 0;
   }
+  15% {
+    transform: scale(1, 0.004);
+    filter: brightness(25);
+    opacity: 0.95;
+  }
   35% {
-    transform: scale(1, 0.005);
-    filter: brightness(30);
+    transform: scale(1, 0.006);
+    filter: brightness(32);
     opacity: 1;
   }
-  65% {
-    transform: scale(1, 1);
-    filter: brightness(4);
+  55% {
+    transform: scale(1, 0.06);
+    filter: brightness(20);
+    opacity: 1;
+  }
+  75% {
+    transform: scale(1, 0.94);
+    filter: brightness(5);
+    opacity: 1;
+  }
+  90% {
+    transform: scale(1, 1.02);
+    filter: brightness(2.2);
+    opacity: 1;
   }
   100% {
     transform: scale(1, 1);
     filter: brightness(1);
+    opacity: 1;
   }
 }
 
 .animate-crt-on {
-  animation: crt-turn-on 0.65s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+  animation: crt-turn-on 1.44s cubic-bezier(0.18, 0.9, 0.25, 1) forwards;
+}
+
+/* Tracklist Drawer Drop-Down Animation (плавное выпадение из-под корпуса телевизора) */
+@keyframes drawer-drop-down {
+  0% {
+    opacity: 0;
+    transform: translateY(-40px) scale(0.97);
+    filter: blur(5px);
+  }
+  65% {
+    opacity: 1;
+    transform: translateY(6px) scale(1.006);
+    filter: blur(0px);
+  }
+  85% {
+    transform: translateY(-2px) scale(0.998);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0px);
+  }
+}
+
+.animate-drawer-drop {
+  animation: drawer-drop-down 0.8s 1.35s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 /* Vinyl Spin Animation */

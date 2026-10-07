@@ -78,7 +78,7 @@ export const CrtMonitor: React.FC<CrtMonitorProps> = ({
   useEffect(() => {
     if (isPoweredOn) {
       setOsdMessage('W8WHT? // ONLINE')
-      const timer = setTimeout(() => setOsdMessage(null), 2200)
+      const timer = setTimeout(() => setOsdMessage(null), 3000)
       return () => clearTimeout(timer)
     } else {
       setPlaybackTime(0)
@@ -265,24 +265,30 @@ export const CrtMonitor: React.FC<CrtMonitorProps> = ({
             </div>
           ) : (
             /* Standby / Powered Off Screen with Cinematic Turn-On Button */
-            <div className="w-full h-full bg-[#050507] flex flex-col items-center justify-center p-6 text-center select-none relative overflow-hidden">
+            <div 
+              onClick={onTurnOn}
+              className="w-full h-full bg-[#050507] flex flex-col items-center justify-center p-6 text-center select-none relative overflow-hidden cursor-pointer group/screen"
+            >
               <div className="scanlines opacity-10 pointer-events-none" />
 
               {/* Standby Monogram Logo */}
-              <div className="w-16 h-16 rounded-2xl bg-black border border-zinc-800 flex items-center justify-center p-2 mb-4 shadow-[0_0_20px_rgba(255,255,255,0.03)]">
-                <img src="/logo.png" alt="WWSKILLY Logo" className="w-full h-full object-contain opacity-40" />
+              <div className="w-16 h-16 rounded-2xl bg-black border border-zinc-800 flex items-center justify-center p-2 mb-4 shadow-[0_0_20px_rgba(255,255,255,0.03)] group-hover/screen:border-zinc-700 transition-colors">
+                <img src="/logo.png" alt="WWSKILLY Logo" className="w-full h-full object-contain opacity-40 group-hover/screen:opacity-60 transition-opacity" />
               </div>
 
               {/* Central Power-On Button */}
               <button
-                onClick={onTurnOn}
-                className="group px-6 py-3 rounded-2xl bg-zinc-900 hover:bg-white text-zinc-300 hover:text-black border border-zinc-700/80 hover:border-white font-mono-tech text-xs sm:text-sm font-bold tracking-widest uppercase transition-all duration-300 shadow-[0_0_25px_rgba(0,0,0,0.9)] active:scale-95 flex items-center gap-2"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onTurnOn()
+                }}
+                className="group px-6 py-3 rounded-2xl bg-zinc-900 group-hover/screen:bg-white text-zinc-300 group-hover/screen:text-black border border-zinc-700/80 group-hover/screen:border-white font-mono-tech text-xs sm:text-sm font-bold tracking-widest uppercase transition-all duration-300 shadow-[0_0_25px_rgba(0,0,0,0.9)] active:scale-95 flex items-center gap-2"
               >
-                <Power size={15} className="text-red-400 group-hover:text-black transition-colors" />
+                <Power size={15} className="text-red-400 group-hover/screen:text-black transition-colors" />
                 <span>ВКЛЮЧИТЬ ТЕЛЕВИЗОР</span>
               </button>
               
-              <p className="font-mono-tech text-[11px] text-zinc-600 mt-3 tracking-widest uppercase">
+              <p className="font-mono-tech text-[11px] text-zinc-600 mt-3 tracking-widest uppercase group-hover/screen:text-zinc-500 transition-colors">
                 STANDBY • НАЖМИТЕ ДЛЯ ЗАПУСКА
               </p>
             </div>
