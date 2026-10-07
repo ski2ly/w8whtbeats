@@ -59,7 +59,7 @@ export const BeatCard: React.FC<BeatCardProps> = ({
               <span className="text-[11px] font-mono-tech text-zinc-500 font-bold">
                 0{index + 1}
               </span>
-              <h4 className="font-display font-bold text-white text-sm sm:text-base tracking-wide truncate group-hover:text-zinc-200 transition-colors uppercase">
+              <h4 className="font-soyuz text-white text-sm sm:text-base tracking-wide truncate group-hover:text-zinc-200 transition-colors uppercase">
                 {beat.title}
               </h4>
               {isActive && isPlaying && (
@@ -84,17 +84,17 @@ export const BeatCard: React.FC<BeatCardProps> = ({
           </div>
         </div>
 
-        {/* Right: Buy / Royalty Button */}
+        {/* Right: Inquire / Collab Button */}
         <div className="shrink-0 flex items-center gap-2">
           <button
             onClick={(e) => {
               e.stopPropagation()
               onInquire(beat)
             }}
-            className="px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-zinc-900 hover:bg-white text-zinc-300 hover:text-black border border-zinc-700/80 hover:border-white font-mono-tech text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm active:scale-95 group/btn"
+            className="px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-zinc-900 hover:bg-white text-zinc-300 hover:text-black border border-zinc-700/80 hover:border-white font-mono-tech text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm active:scale-95 group/btn"
           >
-            <span className="hidden xs:inline">ЗАБРАТЬ WAV</span>
-            <span className="xs:hidden">WAV</span>
+            <span className="hidden sm:inline">ВЗЯТЬ В РАБОТУ</span>
+            <span className="sm:hidden">В РАБОТУ</span>
             <ArrowUpRight size={14} className="group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform" />
           </button>
         </div>

@@ -14,7 +14,19 @@
   }
 }
 
+@font-face {
+  font-family: 'Soyuz Grotesk';
+  src: url('/fonts/SoyuzGrotesk-Bold.woff') format('woff');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* Custom Font Families */
+.font-soyuz {
+  font-family: 'Soyuz Grotesk', 'Syne', sans-serif;
+}
+
 .font-crt {
   font-family: 'VT323', monospace;
 }

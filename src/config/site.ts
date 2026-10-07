@@ -4,6 +4,7 @@ export const SITE_CONFIG = {
   telegramHandle: 'mrski2ly',
   telegramUrl: 'https://t.me/mrski2ly',
   email: 'waitwhat.skilly@gmail.com',
-  royaltyTerms: 'Передача исходного WAV + дорожек (Stems) с официальным договором под роялти (Split Sheet / Royalty Agreement).',
-  description: 'Каталог эксклюзивных и роялти-битов в стилях Hood Trap, Dark Drill и Trap от саунд-продюсера WWSKILLY.',
+  collabHeadline: 'ИЩУ МУЗЫКАНТОВ ДЛЯ КОЛЛАБА',
+  collabSubline: 'Слушай превью, выбирай звук. Напиши мне в Telegram — забирай WAV и делаем сильный трек.',
+  aboutText: 'Темный плотный звук: Hood Trap, Dark Drill, Trap. Открыт к работе с голодными и самобытными артистами.',
 }

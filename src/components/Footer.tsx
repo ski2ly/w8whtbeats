@@ -1,51 +1,59 @@
 import React from 'react'
 import { SITE_CONFIG } from '../config/site'
-import { Send, Mail, FileCheck } from 'lucide-react'
+import { Send, Mail, Radio } from 'lucide-react'
 
 export const Footer: React.FC = () => {
   return (
     <footer className="w-full max-w-xl mx-auto pt-8 pb-12 px-1 text-center border-t border-zinc-800/80 mt-10">
-      {/* Royalty / Purchase info card */}
-      <div className="bg-zinc-950/70 border border-zinc-800/80 rounded-2xl p-4 sm:p-5 text-left mb-6">
-        <div className="flex items-center gap-2 text-xs font-mono-tech text-zinc-300 font-bold uppercase mb-2">
-          <FileCheck size={16} className="text-zinc-200" />
-          <span>КАК ПРОИСХОДИТ СДЕЛКА ПОД РОЯЛТИ:</span>
-        </div>
-        <ol className="text-xs font-sans text-zinc-400 space-y-2 pl-4 list-decimal marker:text-zinc-500">
-          <li>Выбираешь понравившийся бит в каталоге и жмешь <b className="text-zinc-200">«ЗАБРАТЬ WAV»</b>.</li>
-          <li>Пишешь напрямую мне в Telegram (<a href={SITE_CONFIG.telegramUrl} target="_blank" rel="noreferrer" className="text-white underline underline-offset-2">@{SITE_CONFIG.telegramHandle}</a>) или на почту.</li>
-          <li>Согласовываем детали релиза и подписываем договор передачи прав (Royalty / Split Sheet).</li>
-          <li>Получаешь полный архив: <b className="text-zinc-200">WAV Master 24-bit + мультитрек (Stems)</b> без тега.</li>
-        </ol>
-      </div>
+      {/* Collab Banner / Manifesto */}
+      <div className="bg-gradient-to-b from-zinc-900/90 to-zinc-950/90 border border-zinc-800/80 rounded-2xl p-5 text-left mb-6 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 blur-3xl pointer-events-none" />
 
-      {/* Copyright & Tagline */}
-      <div className="flex flex-col items-center justify-center gap-2">
-        <p className="font-display font-extrabold text-sm text-zinc-300 tracking-wider">
-          {SITE_CONFIG.producerName}
+        <div className="flex items-center gap-2 text-xs font-mono-tech text-zinc-300 font-bold uppercase mb-2">
+          <Radio size={14} className="text-zinc-300 animate-pulse" />
+          <span>{SITE_CONFIG.collabHeadline}</span>
+        </div>
+
+        <p className="text-xs sm:text-sm font-sans text-zinc-300 leading-relaxed mb-3">
+          Делаю плотный монохромный саунд. Ищу самобытных и амбициозных артистов, готовых делать сильные релизы.
+          Слушай превью, выбирай бит под свой стиль и пиши мне в Telegram.
         </p>
-        <p className="text-xs font-mono-tech text-zinc-500">
-          Tag: "{SITE_CONFIG.producerTag}" • Dark Trap & Drill Production
-        </p>
-        <div className="flex items-center gap-4 text-xs font-mono-tech text-zinc-400 mt-2">
+
+        <div className="flex flex-wrap items-center gap-2.5 pt-2 border-t border-zinc-800/80">
           <a
             href={SITE_CONFIG.telegramUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="hover:text-white transition-colors flex items-center gap-1"
+            className="px-3.5 py-2 rounded-xl bg-white text-black font-mono-tech text-xs font-bold hover:bg-zinc-200 transition-colors flex items-center gap-1.5 shadow-sm"
           >
-            <Send size={12} />
-            <span>Telegram</span>
+            <Send size={13} />
+            <span>Написать в TG @{SITE_CONFIG.telegramHandle}</span>
           </a>
-          <span>•</span>
+
           <a
             href={`mailto:${SITE_CONFIG.email}`}
-            className="hover:text-white transition-colors flex items-center gap-1"
+            className="px-3 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 font-mono-tech text-xs transition-colors flex items-center gap-1.5"
           >
-            <Mail size={12} />
+            <Mail size={13} />
             <span>{SITE_CONFIG.email}</span>
           </a>
         </div>
+      </div>
+
+      {/* Copyright & Monogram */}
+      <div className="flex flex-col items-center justify-center gap-2">
+        <div className="flex items-center gap-2">
+          <span className="font-soyuz text-base text-zinc-300 tracking-wider">
+            {SITE_CONFIG.producerName}
+          </span>
+          <span className="text-zinc-600 font-mono-tech text-xs">•</span>
+          <span className="text-xs font-mono-tech text-zinc-500 uppercase">
+            COLD MONOCHROME VIBE
+          </span>
+        </div>
+        <p className="text-[11px] font-mono-tech text-zinc-600">
+          Эксклюзивный саунд и коллаборации • Прямой контакт в Telegram
+        </p>
       </div>
     </footer>
   )

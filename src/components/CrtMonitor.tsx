@@ -10,7 +10,6 @@ import {
   Power, 
   Volume2, 
   VolumeX, 
-  Disc3, 
   Radio, 
   Sparkles,
   Maximize2,
@@ -192,19 +191,13 @@ export const CrtMonitor: React.FC<CrtMonitorProps> = ({
                     <div className="absolute inset-4 rounded-full border border-zinc-800/60 pointer-events-none" />
                     <div className="absolute inset-6 rounded-full border border-zinc-800/80 pointer-events-none" />
 
-                    {/* Vinyl Center Sticker */}
-                    <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-zinc-200 text-black flex flex-col items-center justify-center p-1 shadow-inner text-center">
-                      <span className="text-[7px] sm:text-[8px] font-display font-extrabold leading-none tracking-tight">
-                        WWSKILLY
-                      </span>
-                      <Disc3 size={12} className="my-0.5 text-zinc-800" />
-                      <span className="text-[6px] font-mono-tech font-bold leading-none text-zinc-700">
-                        ROYALTY
-                      </span>
+                    {/* Vinyl Center Sticker with User Logo */}
+                    <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-black border border-zinc-700/80 flex items-center justify-center p-1 shadow-inner overflow-hidden">
+                      <img src="/logo.png" alt="WWSKILLY Logo" className="w-8 h-8 sm:w-11 sm:h-11 object-contain" />
                     </div>
 
                     {/* Center Hole */}
-                    <div className="absolute w-2 h-2 rounded-full bg-black border border-zinc-600 pointer-events-none" />
+                    <div className="absolute w-2 h-2 rounded-full bg-white border border-zinc-400 pointer-events-none" />
                   </div>
 
                   {/* Tonearm Needle representation */}
@@ -218,9 +211,9 @@ export const CrtMonitor: React.FC<CrtMonitorProps> = ({
                   </div>
                 </div>
 
-                {/* Track Title and Tag on Screen */}
+                {/* Track Title and Specs on Screen */}
                 <div className="mt-2 text-center">
-                  <h3 className="font-display font-extrabold text-white text-base sm:text-xl tracking-wider crt-glow-text uppercase">
+                  <h3 className="font-soyuz text-white text-base sm:text-xl tracking-wider crt-glow-text uppercase">
                     {currentBeat.title}
                   </h3>
                   <div className="flex items-center justify-center gap-2 mt-0.5">

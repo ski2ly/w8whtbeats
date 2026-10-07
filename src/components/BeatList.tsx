@@ -46,14 +46,14 @@ export const BeatList: React.FC<BeatListProps> = ({
       {/* Catalog Title & Search Row */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
         <div>
-          <h2 className="font-display font-extrabold text-white text-lg sm:text-xl tracking-wider uppercase flex items-center gap-2">
-            <span>КАТАЛОГ БИТОВ</span>
+          <h2 className="font-soyuz text-white text-lg sm:text-xl tracking-wider uppercase flex items-center gap-2">
+            <span>КАТАЛОГ ЗВУКА</span>
             <span className="text-xs font-mono-tech px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 font-normal">
               {filteredBeats.length} ТРЕКОВ
             </span>
           </h2>
           <p className="text-xs font-mono-tech text-zinc-400 mt-0.5">
-            Превью 10-15 сек • WAV Master + Stems под роялти
+            Слушай превью • Забирай в работу напрямую в Telegram
           </p>
         </div>
 
