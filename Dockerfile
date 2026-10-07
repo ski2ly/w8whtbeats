@@ -16,10 +16,13 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# Copy built frontend assets and lightweight server
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/public ./public
-COPY server.js ./
+# Copy built frontend assets and lightweight server with non-root ownership
+COPY --from=builder --chown=node:node /app/dist ./dist
+COPY --from=builder --chown=node:node /app/public ./public
+COPY --chown=node:node server.js ./
+
+# Switch to non-root user for security
+USER node
 
 EXPOSE 3000
 
