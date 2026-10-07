@@ -1,32 +1,86 @@
-# React + TypeScript + Vite
+# WWSKILLY // CRT Beat Showcase
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+> **"Wait... What? Skilly"** — интерактивная витрина битов в ретро-эстетике холодного черно-белого кинескопного телевизора (Cold B&W CRT) для саунд-продюсера WWSKILLY.
 
-Currently, two official plugins are available:
+Сайт оптимизирован в первую очередь для **мобильных устройств (Mobile-First)**, а также адаптирован для планшетов, ноутбуков и мониторов.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## 📺 Особенности витрины
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+1. **Эстетика старого CRT-телевизора:**
+   - Выпуклое стекло кинескопа (эффект линзы / лупы).
+   - Строчные развертки (Scanlines) и холодное фосфорное свечение.
+   - Живой аналоговый осциллограф на экране, реагирующий на звук в реальном времени.
+   - Вращающийся виниловый диск WWSKILLY с тонармом во время проигрывания.
+   - Тактильное управление: переключение каналов (`CH +` / `CH -`), тумблер питания `POWER` (с эффектом схлопывания луча в точку), регулятор громкости и кнопка продюсерского тега `TAG FX`.
 
-## Expanding the Oxlint configuration
+2. **Звуковой движок (Web Audio API):**
+   - Воспроизведение 10-15 секундных MP3 превью.
+   - **Автоматический процедурный синтез:** если MP3 файл еще не залит в каталог, сайт в реальном времени генерирует аутентичный 808 Trap / Drill бит в тональности и темпе трека прямо в браузере!
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+3. **Быстрая сделка под роялти в 1 клик:**
+   - Кнопка **«ЗАБРАТЬ WAV»** открывает окно сделки.
+   - Мгновенный переход в **Telegram** ([@mrski2ly](https://t.me/mrski2ly)) с готовым авто-текстом:
+     > *«Привет, Skilly! Хочу забрать бит «GRAVEYARD SHIFT» (144 BPM, D#m) под роялти с договором.»*
+   - Кнопка отправки на почту: `waitwhat.skilly@gmail.com`.
+   - Копирование контактов в 1 клик.
 
-```json
+---
+
+## 🚀 Быстрый запуск
+
+```bash
+# Установка зависимостей
+npm install
+
+# Запуск локального сервера разработки
+npm run dev
+```
+
+После запуска сайт будет доступен по адресу `http://localhost:5173`.
+
+---
+
+## 🎵 Как добавлять свои биты и аудио
+
+### 1. Добавление аудиофайлов
+Положите ваши 10-15 секундные MP3 в папку `public/audio/`:
+- `public/audio/ww-01.mp3`
+- `public/audio/ww-02.mp3`
+- и т.д.
+
+### 2. Редактирование списка битов
+Откройте файл [`src/data/beats.ts`](file:///D:/personal/projects_CODE/BEAT4SALE/src/data/beats.ts) и измените или добавьте треки:
+
+```typescript
 {
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
+  id: 'ww-07',
+  title: 'NEW BEAT TITLE',
+  bpm: 145,
+  key: 'Gm',
+  genre: 'Hood Trap', // 'Hood Trap' | 'Dark Drill' | 'Trap' | 'Ambient Trap'
+  tags: ['Hard 808', 'Drill', 'Fast'],
+  duration: 15,
+  status: 'available',
+  description: 'Описание вайба бита',
+  audioUrl: '/audio/my-custom-file.mp3' // или оставьте по умолчанию /audio/{id}.mp3
 }
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+### 3. Настройка контактов
+Все контакты и текст договора редактируются в одном месте — [`src/config/site.ts`](file:///D:/personal/projects_CODE/BEAT4SALE/src/config/site.ts).
+
+---
+
+## 🛠 Сборка и деплой
+
+```bash
+# Сборка проекта для продакшна
+npm run build
+```
+Готовая сборка находится в папке `dist/`. Ее можно в 1 клик развернуть на:
+- [Vercel](https://vercel.com)
+- [Cloudflare Pages](https://pages.cloudflare.com)
+- [GitHub Pages](https://pages.github.com)
+- [Netlify](https://netlify.com)
