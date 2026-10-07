@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local Project Context (do not push to git)
+project_context.md
+project_context*.md
