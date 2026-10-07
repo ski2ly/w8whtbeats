@@ -1,0 +1,157 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --crt-phosphor: rgba(235, 240, 245, 0.95);
+    --crt-glow: rgba(220, 230, 245, 0.25);
+    --crt-dark: #070709;
+  }
+
+  body {
+    background-color: #050507;
+    color: #e2e8f0;
+    font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+}
+
+/* Custom Font Families */
+.font-crt {
+  font-family: 'VT323', monospace;
+}
+
+.font-mono-tech {
+  font-family: 'Share Tech Mono', monospace;
+}
+
+.font-display {
+  font-family: 'Syne', sans-serif;
+}
+
+/* CRT Curved Glass & Bulb Distortion */
+.crt-tube-container {
+  position: relative;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 20px 40px -15px rgba(0, 0, 0, 0.9),
+    inset 0 0 35px rgba(255, 255, 255, 0.05);
+}
+
+/* CRT Screen Surface */
+.crt-screen {
+  background: radial-gradient(circle at 50% 40%, #15161c 0%, #090a0d 70%, #030305 100%);
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* Convex Glass Lens / Loupe Highlight */
+.crt-screen::before {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0; left: 0; bottom: 0; right: 0;
+  background: radial-gradient(
+    circle at 50% 30%,
+    rgba(255, 255, 255, 0.07) 0%,
+    rgba(255, 255, 255, 0.01) 60%,
+    rgba(0, 0, 0, 0.6) 100%
+  );
+  pointer-events: none;
+  z-index: 20;
+  border-radius: inherit;
+}
+
+/* Scanlines Effect */
+.scanlines {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 21;
+  background: linear-gradient(
+    rgba(18, 16, 16, 0) 50%, 
+    rgba(0, 0, 0, 0.45) 50%
+  ), 
+  linear-gradient(
+    90deg,
+    rgba(255, 0, 0, 0.03),
+    rgba(0, 255, 0, 0.01),
+    rgba(0, 0, 255, 0.03)
+  );
+  background-size: 100% 3px, 6px 100%;
+  opacity: 0.85;
+}
+
+/* Subtle CRT Flicker */
+@keyframes crt-flicker {
+  0% { opacity: 0.985; }
+  50% { opacity: 1; }
+  70% { opacity: 0.975; }
+  100% { opacity: 0.99; }
+}
+
+.crt-flicker {
+  animation: crt-flicker 0.12s infinite;
+}
+
+/* CRT Turn On Animation */
+@keyframes crt-turn-on {
+  0% {
+    transform: scale(1, 0.005);
+    filter: brightness(30);
+    opacity: 0;
+  }
+  35% {
+    transform: scale(1, 0.005);
+    filter: brightness(30);
+    opacity: 1;
+  }
+  65% {
+    transform: scale(1, 1);
+    filter: brightness(4);
+  }
+  100% {
+    transform: scale(1, 1);
+    filter: brightness(1);
+  }
+}
+
+.animate-crt-on {
+  animation: crt-turn-on 0.65s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+}
+
+/* Vinyl Spin Animation */
+@keyframes vinyl-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: vinyl-spin 4s linear infinite;
+}
+
+/* Glowing text */
+.crt-glow-text {
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.65), 0 0 15px rgba(200, 220, 255, 0.3);
+}
+
+.crt-amber-glow {
+  text-shadow: 0 0 8px rgba(251, 191, 36, 0.8), 0 0 16px rgba(245, 158, 11, 0.4);
+}
+
+/* Custom Scrollbar for Beat List */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: #090a0d;
+}
+::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46;
+}
