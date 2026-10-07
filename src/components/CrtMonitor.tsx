@@ -96,7 +96,7 @@ export const CrtMonitor: React.FC<CrtMonitorProps> = ({
   const handlePlayTag = () => {
     if (!isPoweredOn) return
     audioEngine.playVoiceTag()
-    setOsdMessage('TAG: "W8WHT?"')
+    setOsdMessage('TAG: W8WHT?')
     setTimeout(() => setOsdMessage(null), 2000)
   }
 

@@ -133,7 +133,7 @@ export const DealModal: React.FC<DealModalProps> = ({ beat, onClose }) => {
         {/* Footer Note */}
         <div className="relative z-10 mt-4 text-center">
           <p className="text-[11px] font-mono-tech text-zinc-500">
-            "{SITE_CONFIG.producerTag}" • Быстрый ответ в Telegram
+            {SITE_CONFIG.producerTag} • Быстрый ответ в Telegram
           </p>
         </div>
       </div>

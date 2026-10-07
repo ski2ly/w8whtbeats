@@ -13,7 +13,7 @@ export const Footer: React.FC = () => {
           </span>
           <span className="text-zinc-600 font-mono-tech text-xs">•</span>
           <span className="font-mono-tech text-xs text-zinc-400 tracking-widest uppercase">
-            "{SITE_CONFIG.producerTag}"
+            {SITE_CONFIG.producerTag}
           </span>
         </div>
 
