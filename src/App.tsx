@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
-import { BEATS_CATALOG } from './data/beats'
 import type { Beat } from './types/beat'
+import { BEATS_CATALOG } from './data/beats'
+import { getInitialBeats, fetchLiveContainerBeats } from './utils/beatLoader'
 import { audioEngine } from './utils/audioEngine'
 import { Header } from './components/Header'
 import { CrtMonitor } from './components/CrtMonitor'
@@ -9,13 +10,39 @@ import { DealModal } from './components/DealModal'
 import { Footer } from './components/Footer'
 
 export function App() {
-  const [beats] = useState<Beat[]>(BEATS_CATALOG)
+  const [beats, setBeats] = useState<Beat[]>(getInitialBeats)
   const [currentBeatIndex, setCurrentBeatIndex] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
   const [isPoweredOn, setIsPoweredOn] = useState(false)
   const [dealBeat, setDealBeat] = useState<Beat | null>(null)
 
-  const currentBeat = beats[currentBeatIndex] || beats[0]
+  // Auto-sync beats from container/folder
+  useEffect(() => {
+    let isMounted = true
+
+    const loadBeats = async () => {
+      const live = await fetchLiveContainerBeats()
+      if (isMounted && live.length > 0) {
+        setBeats((prev) => {
+          // Compare if changed to avoid unnecessary re-renders
+          const prevIds = prev.map((b) => b.id).join(',')
+          const nextIds = live.map((b) => b.id).join(',')
+          return prevIds === nextIds ? prev : live
+        })
+      }
+    }
+
+    loadBeats()
+
+    // Periodically sync every 4s to catch newly dropped files
+    const interval = window.setInterval(loadBeats, 4000)
+    return () => {
+      isMounted = false
+      clearInterval(interval)
+    }
+  }, [])
+
+  const currentBeat = beats[currentBeatIndex] || beats[0] || BEATS_CATALOG[0]
 
   // Turn On TV sequence with authentic glitch + 50% faded tag
   const handleTurnOn = useCallback(() => {

@@ -1,0 +1,10 @@
+services:
+  beat4sale:
+    build: .
+    container_name: beat4sale-app
+    ports:
+      - "3000:3000"
+    volumes:
+      # Закидывайте биты прямо в эту папку на компьютере (./beats) — они сразу появятся на сайте!
+      - ./beats:/app/public/beats
+    restart: unless-stopped
