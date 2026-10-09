@@ -22,6 +22,16 @@ class AudioEngine {
   // Cached buffers for zero latency and precise envelope control
   private tagBuffer: AudioBuffer | null = null
   private glitchBuffer: AudioBuffer | null = null
+  private tvShutdownBuffer: AudioBuffer | null = null
+
+  // Web Audio beat playback state for sample-accurate gapless looping
+  private beatSource: AudioBufferSourceNode | null = null
+  private beatBuffer: AudioBuffer | null = null
+  private beatBufferCache = new Map<string, AudioBuffer>()
+  private beatLoadingPromises = new Map<string, Promise<AudioBuffer | null>>()
+  private trackStartTime = 0
+  private pauseOffset = 0
+  private isBeatPlaying = false
 
   private initContext() {
     if (!this.ctx) {
@@ -57,6 +67,14 @@ class AudioEngine {
         })
         .catch(() => {})
 
+      fetch('/audio/tv_shutdown.mp3')
+        .then((res) => res.arrayBuffer())
+        .then((buf) => this.ctx!.decodeAudioData(buf))
+        .then((decoded) => {
+          this.tvShutdownBuffer = decoded
+        })
+        .catch(() => {})
+
       fetch('/audio/skilly-tag.wav')
         .then((res) => res.arrayBuffer())
         .then((buf) => this.ctx!.decodeAudioData(buf))
@@ -65,6 +83,15 @@ class AudioEngine {
         })
         .catch(() => {})
     } catch {}
+  }
+
+  public preloadBeats(urls: string[]) {
+    this.initContext()
+    for (const url of urls) {
+      if (!this.beatBufferCache.has(url) && !this.beatLoadingPromises.has(url)) {
+        this.loadBeatBuffer(url).catch(() => {})
+      }
+    }
   }
 
   public getAnalyser(): AnalyserNode | null {
@@ -85,48 +112,223 @@ class AudioEngine {
   }
 
   public getCurrentTime(): number {
+    if (this.isBeatPlaying && this.ctx && this.trackDuration > 0) {
+      const elapsed = this.ctx.currentTime - this.trackStartTime
+      if (this.isLooping) {
+        return ((elapsed % this.trackDuration) + this.trackDuration) % this.trackDuration
+      }
+      return Math.min(Math.max(0, elapsed), this.trackDuration)
+    }
     if (this.htmlAudio && !isNaN(this.htmlAudio.currentTime)) {
       return this.htmlAudio.currentTime
     }
     if (this.isPlaying && this.ctx) {
       const elapsed = this.ctx.currentTime - this.startTime
       if (this.trackDuration > 0) {
-        return this.isLooping ? (elapsed % this.trackDuration) : Math.min(elapsed, this.trackDuration)
+        return this.isLooping
+          ? ((elapsed % this.trackDuration) + this.trackDuration) % this.trackDuration
+          : Math.min(elapsed, this.trackDuration)
       }
       return elapsed
+    }
+    if (this.pauseOffset > 0) {
+      return this.pauseOffset
     }
     return 0
   }
 
   public getDuration(): number {
+    if (this.trackDuration > 0) {
+      return this.trackDuration
+    }
     if (this.htmlAudio && !isNaN(this.htmlAudio.duration) && this.htmlAudio.duration > 0) {
       return this.htmlAudio.duration
     }
-    return this.trackDuration || 0
+    return 0
   }
 
   public setLoop(loop: boolean) {
     this.isLooping = loop
+    if (this.beatSource) {
+      this.beatSource.loop = loop
+      if (loop && this.beatBuffer) {
+        this.beatSource.loopStart = 0
+        this.beatSource.loopEnd = this.beatBuffer.duration
+      }
+    }
     if (this.htmlAudio) {
       this.htmlAudio.loop = loop
     }
   }
 
-  // Play a beat: loads real audio file. If unavailable or blocked, falls back to procedural synth
+  // Play a beat: loads real audio file into Web Audio buffer for zero-latency sample-accurate looping
   public async playBeat(beat: Beat, onEnded?: () => void, onDuration?: (duration: number) => void) {
     this.initContext()
-    // 1. Fully stop any current sound
-    this.stop()
+    if (this.ctx && this.ctx.state === 'suspended') {
+      try {
+        await this.ctx.resume()
+      } catch {}
+    }
+
+    const isSameBeat = this.currentBeatId === beat.id
+    const resumeOffset = isSameBeat && this.pauseOffset > 0 ? this.pauseOffset : 0
+
+    // Stop active audio sources without blowing away resume offset if switching beats
+    this.stopPlayback()
 
     this.currentBeatId = beat.id
     this.onEndedCallback = onEnded || null
     this.onDurationCallback = onDuration || null
     this.trackDuration = beat.duration || 0
     this.isPlaying = true
+    this.isBeatPlaying = true
     this.startTime = this.ctx!.currentTime
 
     const audioUrl = beat.audioUrl || `/beats/${encodeURIComponent(beat.title)}.mp3`
-    this.playHtmlAudio(audioUrl, beat)
+
+    // Try sample-accurate Web Audio decoding first
+    try {
+      const buffer = await this.loadBeatBuffer(audioUrl)
+      // Check if user changed track or stopped during asynchronous fetch/decode
+      if (!this.isPlaying || this.currentBeatId !== beat.id) {
+        return
+      }
+
+      if (buffer) {
+        this.playBeatBuffer(buffer, resumeOffset)
+        return
+      }
+    } catch (e) {
+      console.warn('[AudioEngine] Web Audio buffer decode failed, falling back to HTMLAudio:', e)
+    }
+
+    // Fallback to HTMLAudio if Web Audio buffer decode fails
+    if (this.isPlaying && this.currentBeatId === beat.id) {
+      this.playHtmlAudio(audioUrl, beat)
+    }
+  }
+
+  private async loadBeatBuffer(url: string): Promise<AudioBuffer | null> {
+    if (this.beatBufferCache.has(url)) {
+      return this.beatBufferCache.get(url)!
+    }
+
+    if (this.beatLoadingPromises.has(url)) {
+      return this.beatLoadingPromises.get(url)!
+    }
+
+    const promise = (async () => {
+      try {
+        const res = await fetch(url)
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const arrayBuffer = await res.arrayBuffer()
+        const decoded = await this.ctx!.decodeAudioData(arrayBuffer)
+        this.beatBufferCache.set(url, decoded)
+        return decoded
+      } catch (err) {
+        console.warn(`[AudioEngine] Failed to load buffer from ${url}:`, err)
+        return null
+      } finally {
+        this.beatLoadingPromises.delete(url)
+      }
+    })()
+
+    this.beatLoadingPromises.set(url, promise)
+    return promise
+  }
+
+  private playBeatBuffer(buffer: AudioBuffer, offset = 0) {
+    if (!this.ctx || !this.analyser) return
+
+    this.cleanupBeatSource()
+
+    this.beatBuffer = buffer
+    this.trackDuration = buffer.duration
+    if (this.onDurationCallback) {
+      this.onDurationCallback(buffer.duration)
+    }
+
+    const source = this.ctx.createBufferSource()
+    source.buffer = buffer
+    source.loop = this.isLooping
+    // Explicit sample-accurate loop bounds: wraps instantaneously at end with 0ms gap
+    source.loopStart = 0
+    source.loopEnd = buffer.duration
+
+    const now = this.ctx.currentTime
+    const safeOffset = Math.max(0, Math.min(offset, Math.max(0, buffer.duration - 0.05)))
+    this.trackStartTime = now - safeOffset
+
+    source.connect(this.analyser)
+    source.start(now, safeOffset)
+
+    source.onended = () => {
+      if (!this.isPlaying || source !== this.beatSource) return
+      if (!this.isLooping) {
+        this.cleanupBeatSource()
+        this.isPlaying = false
+        this.isBeatPlaying = false
+        this.currentBeatId = null
+        this.pauseOffset = 0
+        if (this.onEndedCallback) {
+          this.onEndedCallback()
+        }
+      }
+    }
+
+    this.beatSource = source
+    this.isBeatPlaying = true
+    this.isPlaying = true
+  }
+
+  private cleanupBeatSource() {
+    if (this.beatSource) {
+      try {
+        this.beatSource.onended = null
+        this.beatSource.stop()
+        this.beatSource.disconnect()
+      } catch {}
+      this.beatSource = null
+    }
+  }
+
+  private stopPlayback() {
+    this.cleanupBeatSource()
+    this.isBeatPlaying = false
+
+    if (this.synthGain && this.ctx) {
+      try {
+        this.synthGain.gain.setValueAtTime(0, this.ctx.currentTime)
+        this.synthGain.disconnect()
+      } catch {}
+      this.synthGain = null
+    }
+
+    if (this.htmlAudio) {
+      try {
+        this.htmlAudio.pause()
+        this.htmlAudio.currentTime = 0
+        this.htmlAudio.src = ''
+      } catch {}
+      this.htmlAudio = null
+    }
+
+    this.isSynthesizing = false
+  }
+
+  public pause() {
+    if (this.isBeatPlaying && this.beatSource && this.ctx) {
+      this.pauseOffset = this.getCurrentTime()
+      this.cleanupBeatSource()
+      this.isBeatPlaying = false
+      this.isPlaying = false
+    } else if (this.htmlAudio) {
+      this.pauseOffset = this.htmlAudio.currentTime
+      this.htmlAudio.pause()
+      this.isPlaying = false
+    } else {
+      this.stop()
+    }
   }
 
   private playHtmlAudio(url: string, beat: Beat) {
@@ -391,7 +593,7 @@ class AudioEngine {
     osc.stop(now + 0.03)
   }
 
-  // Cinematic TV Turn-On: Glitch sound (60% vol) + Voice Tag (50% max, fade-in/out) played strictly after glitch
+  // Cinematic TV Turn-On: Glitch sound (50% vol) + Voice Tag (50% max, fade-in/out) played strictly after glitch
   public playTurnOnSequence() {
     this.initContext()
     if (!this.ctx || !this.analyser) return
@@ -400,19 +602,19 @@ class AudioEngine {
     // Exact glitch duration is 1.44s
     const glitchDuration = this.glitchBuffer ? this.glitchBuffer.duration : 1.44
 
-    // 1. Play Glitch from public/audio/glitch.mp3 at exactly 60% volume
+    // 1. Play Glitch from public/audio/glitch.mp3 at exactly 50% volume
     if (this.glitchBuffer) {
       const glitchSource = this.ctx.createBufferSource()
       glitchSource.buffer = this.glitchBuffer
       const glitchGain = this.ctx.createGain()
-      glitchGain.gain.setValueAtTime(0.60, now)
+      glitchGain.gain.setValueAtTime(0.50, now)
       glitchSource.connect(glitchGain)
       glitchGain.connect(this.analyser)
       glitchSource.start(now)
       this.activeNodes.push(glitchSource)
     } else {
       const audio = new Audio('/audio/glitch.mp3')
-      audio.volume = 0.60
+      audio.volume = 0.50
       audio.play().catch(() => {})
     }
 
@@ -450,30 +652,26 @@ class AudioEngine {
     }
   }
 
-  // Cinematic TV Turn-Off: Turn-off glitch sound + cutoff
+  // Cinematic TV Turn-Off: Authentic tv_shutdown sound (50% vol) + cutoff
   public playTurnOffSequence() {
     this.initContext()
     this.stop()
     if (!this.ctx || !this.analyser) return
     const now = this.ctx.currentTime
 
-    if (this.glitchBuffer) {
-      const glitchSource = this.ctx.createBufferSource()
-      glitchSource.buffer = this.glitchBuffer
-      const glitchGain = this.ctx.createGain()
-      glitchGain.gain.setValueAtTime(0.55, now)
-      glitchGain.gain.exponentialRampToValueAtTime(0.001, now + 0.75)
-      glitchSource.connect(glitchGain)
-      glitchGain.connect(this.analyser)
-      glitchSource.start(now)
-      glitchSource.stop(now + 0.8)
+    if (this.tvShutdownBuffer) {
+      const shutdownSource = this.ctx.createBufferSource()
+      shutdownSource.buffer = this.tvShutdownBuffer
+      const shutdownGain = this.ctx.createGain()
+      shutdownGain.gain.setValueAtTime(0.50, now)
+      shutdownSource.connect(shutdownGain)
+      shutdownGain.connect(this.analyser)
+      shutdownSource.start(now)
+      this.activeNodes.push(shutdownSource)
     } else {
-      const audio = new Audio('/audio/glitch.mp3')
-      audio.volume = 0.5
+      const audio = new Audio('/audio/tv_shutdown.mp3')
+      audio.volume = 0.50
       audio.play().catch(() => {})
-      setTimeout(() => {
-        try { audio.pause() } catch {}
-      }, 750)
     }
   }
 
@@ -523,7 +721,12 @@ class AudioEngine {
       this.tagTimer = null
     }
 
-    // 2. Disconnect and silence synthGain immediately
+    // 2. Stop Web Audio beat playback
+    this.cleanupBeatSource()
+    this.isBeatPlaying = false
+    this.pauseOffset = 0
+
+    // 3. Disconnect and silence synthGain immediately
     if (this.synthGain && this.ctx) {
       try {
         this.synthGain.gain.setValueAtTime(0, this.ctx.currentTime)
@@ -532,7 +735,7 @@ class AudioEngine {
       this.synthGain = null
     }
 
-    // 3. Stop and disconnect all queued scheduled nodes
+    // 4. Stop and disconnect all queued scheduled nodes
     for (const node of this.activeNodes) {
       try {
         node.stop()
@@ -541,7 +744,7 @@ class AudioEngine {
     }
     this.activeNodes = []
 
-    // 4. Stop HTML audio
+    // 5. Stop HTML audio
     if (this.htmlAudio) {
       try {
         this.htmlAudio.pause()

@@ -64,17 +64,26 @@ export function App() {
 
   const currentBeat = beats[currentBeatIndex] || beats[0] || EMPTY_BEAT
 
-  // Turn On TV sequence with authentic glitch + 50% faded tag
+  // Preload beats into Web Audio buffer cache for instant zero-latency playback
+  useEffect(() => {
+    if (beats.length > 0) {
+      const urls = beats
+        .map((b) => b.audioUrl || `/beats/${encodeURIComponent(b.title)}.mp3`)
+        .filter(Boolean)
+      audioEngine.preloadBeats(urls)
+    }
+  }, [beats])
+
+  // Turn On TV sequence with authentic glitch (50% vol) + 50% faded tag
   const handleTurnOn = useCallback(() => {
     audioEngine.playTurnOnSequence()
     setIsPoweredOn(true)
   }, [])
 
-  // Power Toggle (turns off: plays glitch collapse, kills all audio immediately)
+  // Power Toggle (turns off: plays authentic tv_shutdown sound at 50% vol, cuts beat playback)
   const handlePowerToggle = useCallback(() => {
     if (isPoweredOn) {
       audioEngine.playTurnOffSequence()
-      audioEngine.stop()
       setIsPlaying(false)
       setIsPoweredOn(false)
     } else {
@@ -93,7 +102,7 @@ export function App() {
     }
 
     if (isPlaying) {
-      audioEngine.stop()
+      audioEngine.pause()
       setIsPlaying(false)
     } else {
       audioEngine.playBeat(
@@ -127,7 +136,7 @@ export function App() {
 
         // If clicking same beat that was already playing, toggle pause
         if (currentBeat.id === beat.id && isPlaying) {
-          audioEngine.stop()
+          audioEngine.pause()
           setIsPlaying(false)
         } else {
           audioEngine.playBeat(
