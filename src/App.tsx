@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import type { Beat } from './types/beat'
 import { getInitialBeats, fetchLiveContainerBeats } from './utils/beatLoader'
 import { audioEngine } from './utils/audioEngine'
+import { useLanguage } from './context/LanguageContext'
 import { Header } from './components/Header'
 import { CrtMonitor } from './components/CrtMonitor'
 import { BeatList } from './components/BeatList'
@@ -9,6 +10,7 @@ import { DealModal } from './components/DealModal'
 import { Footer } from './components/Footer'
 
 export function App() {
+  const { t } = useLanguage()
   const [beats, setBeats] = useState<Beat[]>(getInitialBeats)
   const [currentBeatIndex, setCurrentBeatIndex] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -53,7 +55,7 @@ export function App() {
 
   const EMPTY_BEAT: Beat = {
     id: 'empty',
-    title: 'НЕТ ТРЕКОВ',
+    title: t.noTracksEmpty,
     bpm: 140,
     key: 'Fm',
     genre: 'Hood Trap',
@@ -210,16 +212,20 @@ export function App() {
   return (
     <div className="min-h-screen bg-[#060608] text-zinc-100 flex flex-col justify-between selection:bg-white selection:text-black">
       {/* Background ambient lighting */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-10 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-zinc-600/5 blur-[140px] rounded-full" />
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] sm:w-[600px] h-[350px] bg-zinc-500/5 blur-[120px] rounded-full" />
       </div>
 
-      <div className="relative z-10 w-full max-w-xl mx-auto px-3 sm:px-4 flex flex-col flex-1">
+      <div className="relative z-10 w-full max-w-xl md:max-w-2xl mx-auto px-2.5 sm:px-4 md:px-6 flex flex-col flex-1 transition-all duration-300">
         {/* Top Header */}
         <Header />
 
         {/* Main Content: CRT Monitor Unit & Drop-Down Drawer */}
-        <main className="mt-4 sm:mt-6 flex-1 flex flex-col items-center">
+        <main
+          className={`w-full flex-1 flex flex-col items-center transition-all duration-500 ${
+            isPoweredOn ? 'mt-3 sm:mt-5 md:mt-6' : 'justify-center py-6 sm:py-10 md:py-12'
+          }`}
+        >
           {/* CRT Monitor Unit */}
           <div className="w-full">
             <CrtMonitor
@@ -239,7 +245,7 @@ export function App() {
 
           {/* Tracklist Drawer: Only visible when TV is powered on, smoothly drops down from under the TV */}
           {isPoweredOn && (
-            <div className="w-full mt-6 animate-drawer-drop">
+            <div className="w-full mt-5 sm:mt-6 animate-drawer-drop">
               <BeatList
                 beats={beats}
                 currentBeat={currentBeat}

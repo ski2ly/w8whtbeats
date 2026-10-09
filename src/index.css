@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+@theme {
+  --breakpoint-xs: 440px;
+}
+
 @layer base {
   :root {
     --crt-phosphor: rgba(235, 240, 245, 0.95);
