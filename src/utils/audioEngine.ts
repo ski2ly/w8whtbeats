@@ -33,6 +33,16 @@ class AudioEngine {
   private pauseOffset = 0
   private isBeatPlaying = false
 
+  // Killer Features: Half-Time, Pitch Transpose, CRT Lo-Fi Speaker Filter
+  private isHalfTime = false
+  private pitchSemitones = 0 // -2 to +2 semitones (-200 to +200 cents)
+  private isLofi = false
+  private cleanGain: GainNode | null = null
+  private lofiGain: GainNode | null = null
+  private lofiHp: BiquadFilterNode | null = null
+  private lofiLp: BiquadFilterNode | null = null
+  private lofiMid: BiquadFilterNode | null = null
+
   private initContext() {
     if (!this.ctx) {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
@@ -44,7 +54,40 @@ class AudioEngine {
       this.masterGain = this.ctx.createGain()
       this.masterGain.gain.value = 0.85
 
-      this.analyser.connect(this.masterGain)
+      // Clean signal path
+      this.cleanGain = this.ctx.createGain()
+      this.cleanGain.gain.value = this.isLofi ? 0.0 : 1.0
+
+      // Lo-Fi CRT TV speaker bandpass filter chain (cuts sub-bass <320Hz, highs >4.2kHz, boosts boxy mids at 1.4kHz)
+      this.lofiGain = this.ctx.createGain()
+      this.lofiGain.gain.value = this.isLofi ? 1.0 : 0.0
+
+      this.lofiHp = this.ctx.createBiquadFilter()
+      this.lofiHp.type = 'highpass'
+      this.lofiHp.frequency.value = 320
+      this.lofiHp.Q.value = 0.7
+
+      this.lofiLp = this.ctx.createBiquadFilter()
+      this.lofiLp.type = 'lowpass'
+      this.lofiLp.frequency.value = 4200
+      this.lofiLp.Q.value = 0.8
+
+      this.lofiMid = this.ctx.createBiquadFilter()
+      this.lofiMid.type = 'peaking'
+      this.lofiMid.frequency.value = 1400
+      this.lofiMid.gain.value = 3.5
+
+      // Connect clean path: analyser -> cleanGain -> masterGain
+      this.analyser.connect(this.cleanGain)
+      this.cleanGain.connect(this.masterGain)
+
+      // Connect Lo-Fi path: analyser -> HP -> LP -> Mid -> lofiGain -> masterGain
+      this.analyser.connect(this.lofiHp)
+      this.lofiHp.connect(this.lofiLp)
+      this.lofiLp.connect(this.lofiMid)
+      this.lofiMid.connect(this.lofiGain)
+      this.lofiGain.connect(this.masterGain)
+
       this.masterGain.connect(this.ctx.destination)
 
       // Preload buffers
@@ -112,8 +155,9 @@ class AudioEngine {
   }
 
   public getCurrentTime(): number {
+    const rate = this.isHalfTime ? 0.5 : 1.0
     if (this.isBeatPlaying && this.ctx && this.trackDuration > 0) {
-      const elapsed = this.ctx.currentTime - this.trackStartTime
+      const elapsed = (this.ctx.currentTime - this.trackStartTime) * rate
       if (this.isLooping) {
         return ((elapsed % this.trackDuration) + this.trackDuration) % this.trackDuration
       }
@@ -123,7 +167,7 @@ class AudioEngine {
       return this.htmlAudio.currentTime
     }
     if (this.isPlaying && this.ctx) {
-      const elapsed = this.ctx.currentTime - this.startTime
+      const elapsed = (this.ctx.currentTime - this.startTime) * rate
       if (this.trackDuration > 0) {
         return this.isLooping
           ? ((elapsed % this.trackDuration) + this.trackDuration) % this.trackDuration
@@ -159,6 +203,93 @@ class AudioEngine {
     if (this.htmlAudio) {
       this.htmlAudio.loop = loop
     }
+  }
+
+  // --- FX Controls: Half-Time (0.5x), Pitch Transpose, Lo-Fi Speaker Filter ---
+
+  public getIsHalfTime(): boolean {
+    return this.isHalfTime
+  }
+
+  public setHalfTime(enable: boolean): boolean {
+    this.initContext()
+    if (this.isHalfTime === enable) return this.isHalfTime
+
+    const prevVirtual = this.getCurrentTime()
+    this.isHalfTime = enable
+    const newRate = enable ? 0.5 : 1.0
+
+    if (this.ctx && this.beatSource) {
+      const now = this.ctx.currentTime
+      this.beatSource.playbackRate.setValueAtTime(newRate, now)
+      this.trackStartTime = now - (prevVirtual / newRate)
+    }
+
+    if (this.htmlAudio) {
+      this.htmlAudio.playbackRate = newRate
+    }
+
+    return this.isHalfTime
+  }
+
+  public toggleHalfTime(): boolean {
+    return this.setHalfTime(!this.isHalfTime)
+  }
+
+  public getPitchSemitones(): number {
+    return this.pitchSemitones
+  }
+
+  public setPitchSemitones(semitones: number): number {
+    this.initContext()
+    const clamped = Math.max(-2, Math.min(2, Math.round(semitones)))
+    this.pitchSemitones = clamped
+
+    if (this.ctx && this.beatSource) {
+      this.beatSource.detune.setValueAtTime(this.pitchSemitones * 100, this.ctx.currentTime)
+    }
+    return this.pitchSemitones
+  }
+
+  public stepPitch(delta: number): number {
+    return this.setPitchSemitones(this.pitchSemitones + delta)
+  }
+
+  public getIsLofi(): boolean {
+    return this.isLofi
+  }
+
+  public setLofi(enable: boolean): boolean {
+    this.initContext()
+    this.isLofi = enable
+
+    if (this.ctx && this.cleanGain && this.lofiGain) {
+      const now = this.ctx.currentTime
+      this.cleanGain.gain.cancelScheduledValues(now)
+      this.lofiGain.gain.cancelScheduledValues(now)
+      if (enable) {
+        this.cleanGain.gain.setValueAtTime(this.cleanGain.gain.value, now)
+        this.cleanGain.gain.linearRampToValueAtTime(0, now + 0.04)
+        this.lofiGain.gain.setValueAtTime(this.lofiGain.gain.value, now)
+        this.lofiGain.gain.linearRampToValueAtTime(1.0, now + 0.04)
+      } else {
+        this.lofiGain.gain.setValueAtTime(this.lofiGain.gain.value, now)
+        this.lofiGain.gain.linearRampToValueAtTime(0, now + 0.04)
+        this.cleanGain.gain.setValueAtTime(this.cleanGain.gain.value, now)
+        this.cleanGain.gain.linearRampToValueAtTime(1.0, now + 0.04)
+      }
+    }
+    return this.isLofi
+  }
+
+  public toggleLofi(): boolean {
+    return this.setLofi(!this.isLofi)
+  }
+
+  public resetFx() {
+    this.setHalfTime(false)
+    this.setPitchSemitones(0)
+    this.setLofi(false)
   }
 
   // Play a beat: loads real audio file into Web Audio buffer for zero-latency sample-accurate looping
@@ -256,8 +387,12 @@ class AudioEngine {
     source.loopEnd = buffer.duration
 
     const now = this.ctx.currentTime
+    const rate = this.isHalfTime ? 0.5 : 1.0
+    source.playbackRate.setValueAtTime(rate, now)
+    source.detune.setValueAtTime(this.pitchSemitones * 100, now)
+
     const safeOffset = Math.max(0, Math.min(offset, Math.max(0, buffer.duration - 0.05)))
-    this.trackStartTime = now - safeOffset
+    this.trackStartTime = now - (safeOffset / rate)
 
     source.connect(this.analyser)
     source.start(now, safeOffset)
@@ -335,6 +470,7 @@ class AudioEngine {
     this.htmlAudio = new Audio(url)
     this.htmlAudio.crossOrigin = 'anonymous'
     this.htmlAudio.loop = this.isLooping
+    this.htmlAudio.playbackRate = this.isHalfTime ? 0.5 : 1.0
 
     const syncDuration = () => {
       if (this.htmlAudio && Number.isFinite(this.htmlAudio.duration) && this.htmlAudio.duration > 0) {

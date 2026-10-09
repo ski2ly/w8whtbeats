@@ -24,7 +24,7 @@ export const Header: React.FC = () => {
             {SITE_CONFIG.producerName}
           </h1>
           <p className="text-[10px] sm:text-[11px] font-mono-tech text-zinc-400 mt-1 tracking-widest uppercase">
-            {SITE_CONFIG.producerTag}
+            {t.producerTagline}
           </p>
         </div>
       </div>

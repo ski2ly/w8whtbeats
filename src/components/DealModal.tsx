@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import type { Beat } from '../types/beat'
 import { SITE_CONFIG } from '../config/site'
 import { useLanguage } from '../context/LanguageContext'
-import { X, Send, Mail, Copy, Check, Radio } from 'lucide-react'
+import { X, Send, Mail, Copy, Check, Radio, FileAudio, CheckCircle2 } from 'lucide-react'
 import confetti from 'canvas-confetti'
 
 interface DealModalProps {
@@ -79,14 +79,35 @@ export const DealModal: React.FC<DealModalProps> = ({ beat, onClose }) => {
             <span className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-700 font-bold">
               KEY: {beat.key}
             </span>
+            <span className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-700 text-zinc-400 font-bold">
+              24-BIT WAV
+            </span>
           </div>
         </div>
 
-        {/* Free WAV Note */}
-        <div className="relative z-10 mt-4 sm:mt-5 p-3 sm:p-3.5 rounded-xl bg-zinc-900/90 border border-zinc-800 text-xs sm:text-sm font-sans">
-          <p className="text-zinc-200 font-medium leading-relaxed">
-            {t.modalNote}
-          </p>
+        {/* Primary Licensing Overview */}
+        <div className="relative z-10 mt-4 sm:mt-5 p-3.5 sm:p-4 rounded-xl bg-zinc-900/90 border border-zinc-800 text-xs sm:text-sm font-sans">
+          <div className="flex items-start gap-2.5">
+            <FileAudio size={18} className="text-white shrink-0 mt-0.5" />
+            <p className="text-zinc-200 leading-relaxed font-normal">
+              {t.modalNote}
+            </p>
+          </div>
+        </div>
+
+        {/* Deliverables & Terms Checklist */}
+        <div className="relative z-10 mt-3.5 p-3.5 rounded-xl bg-black/50 border border-zinc-800/90 text-xs font-mono-tech space-y-2">
+          <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold block">
+            {t.dealTermsTitle}
+          </span>
+          <div className="space-y-1.5 text-zinc-300">
+            {t.dealTermsList.map((term, i) => (
+              <div key={i} className="flex items-start gap-2">
+                <CheckCircle2 size={13} className="text-emerald-400 shrink-0 mt-0.5" />
+                <span className="leading-snug text-zinc-300">{term}</span>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Primary Contact Actions */}
@@ -112,7 +133,7 @@ export const DealModal: React.FC<DealModalProps> = ({ beat, onClose }) => {
             <span>{t.modalEmailButton}</span>
           </a>
 
-          {/* Copy Buttons */}
+          {/* Copy Direct Handles */}
           <div className="pt-1 flex flex-col xs:flex-row items-center justify-between gap-2 text-xs font-mono-tech text-zinc-400">
             <button
               onClick={() => handleCopy(`@${SITE_CONFIG.telegramHandle}`, 'tg')}

@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import type { Beat } from '../types/beat'
-import { CrtOscilloscope } from './CrtOscilloscope'
+import { CrtOscilloscope, type VisualizerMode } from './CrtOscilloscope'
 import { audioEngine } from '../utils/audioEngine'
+import { transposeKey } from '../utils/musicKey'
 import { useLanguage } from '../context/LanguageContext'
 import { 
   Play, 
@@ -12,7 +13,11 @@ import {
   Volume2, 
   VolumeX, 
   Sparkles,
-  Repeat
+  Repeat,
+  Radio,
+  Activity,
+  Sliders,
+  RotateCcw
 } from 'lucide-react'
 
 interface CrtMonitorProps {
@@ -48,6 +53,19 @@ export const CrtMonitor: React.FC<CrtMonitorProps> = ({
   const [playbackTime, setPlaybackTime] = useState(0)
   const [osdMessage, setOsdMessage] = useState<string | null>(null)
 
+  // Killer Features state
+  const [isHalfTime, setIsHalfTime] = useState(false)
+  const [pitchSemitones, setPitchSemitones] = useState(0)
+  const [isLofi, setIsLofi] = useState(false)
+  const [visualizerMode, setVisualizerMode] = useState<VisualizerMode>('wave')
+
+  // Mobile touch gesture tracking
+  const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null)
+
+  // Transposed key computation
+  const transposedKey = transposeKey(currentBeat.key, pitchSemitones)
+  const effectiveBpm = isHalfTime ? Math.round(currentBeat.bpm / 2) : currentBeat.bpm
+
   // Synchronize playback time precisely with audioEngine hardware clock (60fps, zero drift)
   useEffect(() => {
     let animId: number | null = null
@@ -81,9 +99,15 @@ export const CrtMonitor: React.FC<CrtMonitorProps> = ({
       return () => clearTimeout(timer)
     } else {
       setPlaybackTime(0)
+      // Reset FX states on monitor power off
+      setIsHalfTime(false)
+      setPitchSemitones(0)
+      setIsLofi(false)
+      audioEngine.resetFx()
     }
   }, [isPoweredOn, t.onlineMessage])
 
+  // Handlers for Standard Controls
   const handleToggleLoop = () => {
     if (!isPoweredOn) return
     const next = !isLooping
@@ -124,6 +148,87 @@ export const CrtMonitor: React.FC<CrtMonitorProps> = ({
     setTimeout(() => setOsdMessage(null), 2000)
   }
 
+  // --- Handlers for Killer Features ---
+
+  // 1. Half-Time (0.5X)
+  const handleToggleHalfTime = () => {
+    if (!isPoweredOn) return
+    const next = audioEngine.toggleHalfTime()
+    setIsHalfTime(next)
+    setOsdMessage(next ? t.halfTimeOsdOn : t.halfTimeOsdOff)
+    setTimeout(() => setOsdMessage(null), 1800)
+  }
+
+  // 2. Pitch / Detune Transpose
+  const handlePitchStep = (delta: number) => {
+    if (!isPoweredOn) return
+    const next = audioEngine.stepPitch(delta)
+    setPitchSemitones(next)
+    const newKey = transposeKey(currentBeat.key, next)
+    setOsdMessage(t.pitchOsd(next, newKey))
+    setTimeout(() => setOsdMessage(null), 1800)
+  }
+
+  const handlePitchReset = () => {
+    if (!isPoweredOn || pitchSemitones === 0) return
+    audioEngine.setPitchSemitones(0)
+    setPitchSemitones(0)
+    setOsdMessage(t.pitchResetTitle)
+    setTimeout(() => setOsdMessage(null), 1500)
+  }
+
+  // 3. CRT Speaker Lo-Fi Filter
+  const handleToggleLofi = () => {
+    if (!isPoweredOn) return
+    const next = audioEngine.toggleLofi()
+    setIsLofi(next)
+    setOsdMessage(next ? t.lofiOsdOn : t.lofiOsdOff)
+    setTimeout(() => setOsdMessage(null), 1800)
+  }
+
+  // 4. Visualizer Mode Toggle
+  const handleToggleVisualizer = () => {
+    const next = visualizerMode === 'wave' ? 'spectrum' : 'wave'
+    setVisualizerMode(next)
+    setOsdMessage(next === 'spectrum' ? t.vfdSpectrumTitle : t.oscilloscopeTitle)
+    setTimeout(() => setOsdMessage(null), 1500)
+  }
+
+  // 5. Mobile Touch Gestures on CRT Screen: Swipe left/right for CH+/CH-, Tap for Play/Pause
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!isPoweredOn) return
+    const touch = e.touches[0]
+    touchStartRef.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      time: Date.now(),
+    }
+  }
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!isPoweredOn || !touchStartRef.current) return
+    const touch = e.changedTouches[0]
+    const deltaX = touch.clientX - touchStartRef.current.x
+    const deltaY = touch.clientY - touchStartRef.current.y
+    const elapsed = Date.now() - touchStartRef.current.time
+    touchStartRef.current = null
+
+    // Horizontal Swipe detection
+    if (Math.abs(deltaX) > 42 && Math.abs(deltaX) > Math.abs(deltaY) * 1.3) {
+      if (deltaX < 0) {
+        handleNext()
+      } else {
+        handlePrev()
+      }
+      return
+    }
+
+    // Single Tap detection (short duration, minimal movement)
+    if (Math.abs(deltaX) < 12 && Math.abs(deltaY) < 12 && elapsed < 350) {
+      onTogglePlay()
+    }
+  }
+
   const totalDuration = currentBeat.duration || (isPlaying ? audioEngine.getDuration() : 0) || 0
 
   const formatTime = (seconds: number) => {
@@ -151,7 +256,7 @@ export const CrtMonitor: React.FC<CrtMonitorProps> = ({
       {/* TV Chassis / Frame with authentic CRT bevel and metallic shading */}
       <div className="relative bg-gradient-to-b from-[#1b1c23] via-[#111218] to-[#0a0b0e] rounded-[24px] sm:rounded-[30px] md:rounded-[34px] p-2.5 sm:p-4 md:p-5 border border-zinc-800 shadow-[0_25px_60px_rgba(0,0,0,0.95),inset_0_1px_1px_rgba(255,255,255,0.18)]">
         
-        {/* Top TV Brand Badge */}
+        {/* Top TV Brand Badge & System Indicators */}
         <div className="flex items-center justify-between px-2 pb-2 text-[10px] sm:text-[11px] font-mono-tech tracking-widest text-zinc-400">
           <div className="flex items-center gap-2">
             <span 
@@ -170,8 +275,12 @@ export const CrtMonitor: React.FC<CrtMonitorProps> = ({
           </div>
         </div>
 
-        {/* CRT Glass Tube / Screen Container */}
-        <div className="crt-tube-container relative aspect-[4/3] sm:aspect-[16/11] min-h-[280px] sm:min-h-[350px] md:min-h-[390px] bg-black rounded-[14px] sm:rounded-[18px] overflow-hidden border border-zinc-900 shadow-inner">
+        {/* CRT Glass Tube / Screen Container with Touch Gestures */}
+        <div 
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          className="crt-tube-container relative aspect-[4/3] sm:aspect-[16/11] min-h-[290px] sm:min-h-[355px] md:min-h-[395px] bg-black rounded-[14px] sm:rounded-[18px] overflow-hidden border border-zinc-900 shadow-inner cursor-pointer"
+        >
           {isPoweredOn ? (
             <div className="crt-screen crt-flicker w-full h-full p-3 sm:p-4 md:p-5 flex flex-col justify-between select-none relative animate-crt-on">
               {/* Scanline layer */}
@@ -180,7 +289,7 @@ export const CrtMonitor: React.FC<CrtMonitorProps> = ({
               {/* Top OSD Information */}
               <div className="relative z-30 flex items-start justify-between font-crt text-base sm:text-xl text-zinc-300 tracking-wider">
                 <div className="flex flex-col">
-                  <div className="flex items-center gap-1.5 sm:gap-2 text-white crt-glow-text">
+                  <div className="flex items-center gap-1.5 sm:gap-2 text-white crt-glow-text flex-wrap">
                     <span className="text-zinc-400 text-xs sm:text-sm">{t.chTitle}</span>
                     <span className="font-bold text-lg sm:text-2xl">
                       0{channelIndex + 1}/{totalChannels < 10 ? `0${totalChannels}` : totalChannels}
@@ -193,6 +302,21 @@ export const CrtMonitor: React.FC<CrtMonitorProps> = ({
                         {t.loopBadge}
                       </span>
                     )}
+                    {isHalfTime && (
+                      <span className="text-[9px] sm:text-[10px] px-1 py-0.2 rounded bg-amber-400 text-black font-bold font-mono-tech shadow-[0_0_8px_rgba(251,191,36,0.8)]">
+                        {t.halfTimeBadge}
+                      </span>
+                    )}
+                    {pitchSemitones !== 0 && (
+                      <span className="text-[9px] sm:text-[10px] px-1 py-0.2 rounded bg-cyan-300 text-black font-bold font-mono-tech shadow-[0_0_8px_rgba(103,232,249,0.8)]">
+                        {pitchSemitones > 0 ? `+${pitchSemitones}` : pitchSemitones} ST
+                      </span>
+                    )}
+                    {isLofi && (
+                      <span className="text-[9px] sm:text-[10px] px-1 py-0.2 rounded bg-emerald-400 text-black font-bold font-mono-tech shadow-[0_0_8px_rgba(52,211,153,0.8)]">
+                        {t.lofiBadge}
+                      </span>
+                    )}
                   </div>
                   <div className="text-[10px] sm:text-xs font-mono-tech text-zinc-400 flex items-center gap-1.5 mt-0.5">
                     <span className={isPlaying ? 'text-emerald-400 animate-pulse' : 'text-zinc-500'}>●</span>
@@ -200,21 +324,22 @@ export const CrtMonitor: React.FC<CrtMonitorProps> = ({
                   </div>
                 </div>
 
-                <div className="text-right flex flex-col items-end">
+                <div className="text-right flex flex-col items-end shrink-0">
                   <span className="text-white font-mono-tech text-xs sm:text-base font-bold crt-glow-text">
                     {formatTime(playbackTime)} / {formatTime(totalDuration)}
                   </span>
                   <span className="text-[10px] sm:text-xs font-mono-tech text-zinc-400 tracking-normal">
-                    {currentBeat.bpm} BPM // {currentBeat.key}
+                    {effectiveBpm} BPM // {transposedKey}
+                    {pitchSemitones !== 0 && ` (${pitchSemitones > 0 ? '+' : ''}${pitchSemitones})`}
                   </span>
                 </div>
               </div>
 
-              {/* Temporary Channel Switch OSD Banner */}
+              {/* Temporary Channel / FX Switch OSD Banner */}
               {osdMessage && (
                 <div className="absolute top-12 left-3 right-3 sm:left-4 sm:right-4 z-40 bg-white/10 backdrop-blur-sm border border-white/30 text-white font-mono-tech text-xs sm:text-sm px-3 py-1.5 rounded flex items-center justify-between shadow-lg animate-pulse">
                   <span className="font-bold tracking-wider truncate">{osdMessage}</span>
-                  <span className="text-[9px] sm:text-[10px] text-zinc-400 shrink-0 ml-2">STEREO 44.1kHz</span>
+                  <span className="text-[9px] sm:text-[10px] text-zinc-400 shrink-0 ml-2">24-BIT 44.1kHz</span>
                 </div>
               )}
 
@@ -224,7 +349,7 @@ export const CrtMonitor: React.FC<CrtMonitorProps> = ({
                   {/* Vinyl Outer Disc */}
                   <div 
                     className={`relative w-24 h-24 xs:w-28 xs:h-28 sm:w-36 sm:h-36 md:w-40 md:h-40 rounded-full bg-gradient-to-tr from-zinc-950 via-zinc-900 to-zinc-950 border-4 border-zinc-800 shadow-[0_0_25px_rgba(0,0,0,0.9),inset_0_0_15px_rgba(255,255,255,0.08)] flex items-center justify-center transition-transform ${
-                      isPlaying ? 'animate-spin-slow' : ''
+                      isPlaying ? (isHalfTime ? 'animate-spin-slower' : 'animate-spin-slow') : ''
                     }`}
                   >
                     {/* Vinyl Grooves */}
@@ -259,7 +384,7 @@ export const CrtMonitor: React.FC<CrtMonitorProps> = ({
                   </h3>
                   <div className="flex items-center justify-center gap-1.5 sm:gap-2 mt-0.5">
                     <span className="text-[10px] sm:text-[11px] font-mono-tech px-1.5 sm:px-2 py-0.5 rounded bg-zinc-800/80 text-zinc-300 border border-zinc-700">
-                      {currentBeat.bpm} BPM // {currentBeat.key}
+                      {effectiveBpm} BPM // {transposedKey}
                     </span>
                     <span className="text-[9px] sm:text-[10px] font-mono-tech text-zinc-400">
                       {formatBadgeDuration(totalDuration)}
@@ -268,12 +393,33 @@ export const CrtMonitor: React.FC<CrtMonitorProps> = ({
                 </div>
               </div>
 
-              {/* Bottom: Real-Time CRT Oscilloscope */}
+              {/* Bottom: Dual Mode CRT Oscilloscope / VFD Spectrum Analyzer */}
               <div className="relative z-30 pt-0.5 sm:pt-1">
-                <CrtOscilloscope isPlaying={isPlaying} />
+                <CrtOscilloscope 
+                  isPlaying={isPlaying} 
+                  mode={visualizerMode}
+                  onToggleMode={handleToggleVisualizer}
+                />
                 <div className="flex justify-between items-center text-[9px] sm:text-[10px] font-mono-tech text-zinc-500 mt-1 px-1">
-                  <span>{t.oscilloscopeTitle}</span>
-                  <span className="text-zinc-400">{currentBeat.key} {t.scaleTitle}</span>
+                  <div className="flex items-center gap-1.5">
+                    <span>
+                      {visualizerMode === 'spectrum' ? t.vfdSpectrumTitle : t.oscilloscopeTitle}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleToggleVisualizer()
+                      }}
+                      className="px-1.5 py-0.2 rounded bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 text-[8px] uppercase tracking-wider transition-colors"
+                      title={t.vfdToggleTitle}
+                    >
+                      {visualizerMode === 'wave' ? t.vfdModeBars : t.vfdModeWave}
+                    </button>
+                  </div>
+                  <span className="text-zinc-400">
+                    {transposedKey} {t.scaleTitle}
+                  </span>
                 </div>
               </div>
             </div>
@@ -281,7 +427,7 @@ export const CrtMonitor: React.FC<CrtMonitorProps> = ({
             /* Standby / Powered Off Screen with Cinematic Turn-On Button */
             <div 
               onClick={onTurnOn}
-              className="w-full h-full bg-[#050507] flex flex-col items-center justify-center p-4 sm:p-6 text-center select-none relative overflow-hidden cursor-pointer group/screen"
+              className="w-full h-full bg-[#050507] flex flex-col items-center justify-center p-4 sm:p-6 text-center select-none relative overflow-hidden group/screen"
             >
               <div className="scanlines opacity-10 pointer-events-none" />
 
@@ -310,110 +456,208 @@ export const CrtMonitor: React.FC<CrtMonitorProps> = ({
         </div>
 
         {/* Physical TV Front-Panel Controls & Tactile Knobs */}
-        <div className="mt-2.5 sm:mt-4 pt-2.5 sm:pt-3 border-t border-zinc-800/80 flex flex-wrap items-center justify-between gap-1.5 sm:gap-2.5">
+        <div className="mt-2.5 sm:mt-3.5 pt-2.5 sm:pt-3 border-t border-zinc-800/80 flex flex-col gap-2">
           
-          {/* Channel Control Buttons (CH+ / CH-) */}
-          <div className="flex items-center gap-1 sm:gap-1.5 bg-zinc-900/90 p-0.5 sm:p-1 rounded-xl border border-zinc-800 shadow-inner shrink-0">
-            <button
-              onClick={handlePrev}
-              disabled={!isPoweredOn}
-              title={t.prevBeatTitle}
-              className="px-2 py-1.5 sm:px-2.5 sm:py-1.5 bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-900 disabled:opacity-30 text-zinc-200 rounded-lg text-xs font-mono-tech flex items-center gap-1 transition-colors border border-zinc-700/60"
-            >
-              <ChevronDown size={14} />
-              <span>CH -</span>
-            </button>
-            <button
-              onClick={handleNext}
-              disabled={!isPoweredOn}
-              title={t.nextBeatTitle}
-              className="px-2 py-1.5 sm:px-2.5 sm:py-1.5 bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-900 disabled:opacity-30 text-zinc-200 rounded-lg text-xs font-mono-tech flex items-center gap-1 transition-colors border border-zinc-700/60"
-            >
-              <ChevronUp size={14} />
-              <span>CH +</span>
-            </button>
-          </div>
-
-          {/* Central Playback Trigger, Loop & Voice Tag */}
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <button
-              onClick={onTogglePlay}
-              disabled={!isPoweredOn}
-              className={`px-3 sm:px-5 py-1.5 sm:py-2 rounded-xl font-mono-tech text-xs font-bold flex items-center gap-1.5 sm:gap-2 transition-all shadow-md active:scale-95 border ${
-                isPlaying 
-                  ? 'bg-zinc-200 text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.4)]' 
-                  : 'bg-zinc-800 hover:bg-zinc-700 text-white border-zinc-700'
-              } disabled:opacity-30`}
-            >
-              {isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}
-              <span>{isPlaying ? t.pauseButton : t.playButton}</span>
-            </button>
-
-            {/* Loop Toggle Button */}
-            <button
-              onClick={handleToggleLoop}
-              disabled={!isPoweredOn}
-              title={isLooping ? t.loopOnTitle : t.loopOffTitle}
-              className={`p-1.5 sm:p-2 rounded-xl border font-mono-tech text-xs transition-all flex items-center gap-1 sm:gap-1.5 active:scale-95 ${
-                isLooping
-                  ? 'bg-white text-black border-white shadow-[0_0_12px_rgba(255,255,255,0.4)] font-bold'
-                  : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-400 border-zinc-800 hover:text-white'
-              } disabled:opacity-30`}
-            >
-              <Repeat size={13} />
-              <span className="hidden xs:inline">{t.loopBadge}</span>
-            </button>
-
-            {/* Producer Voice Tag Button */}
-            <button
-              onClick={handlePlayTag}
-              disabled={!isPoweredOn}
-              title={t.tagButtonTitle}
-              className="p-1.5 sm:p-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 rounded-xl border border-zinc-800 transition-colors flex items-center justify-center text-xs font-mono-tech gap-1 sm:gap-1.5 disabled:opacity-30"
-            >
-              <Sparkles size={13} className="text-zinc-400" />
-              <span className="hidden xs:inline">{t.tagFx}</span>
-            </button>
-          </div>
-
-          {/* Volume and Power Section */}
-          <div className="flex items-center gap-1.5 sm:gap-2.5 ml-auto sm:ml-0">
-            {/* Volume control */}
-            <div className="flex items-center gap-1 sm:gap-1.5 bg-zinc-900/90 px-1.5 sm:px-2 py-1.5 rounded-xl border border-zinc-800">
+          {/* Row 1: Channels, Playback & Power */}
+          <div className="flex flex-wrap items-center justify-between gap-1.5 sm:gap-2">
+            
+            {/* Channel Control Buttons (CH+ / CH-) */}
+            <div className="flex items-center gap-1 sm:gap-1.5 bg-zinc-900/90 p-0.5 sm:p-1 rounded-xl border border-zinc-800 shadow-inner shrink-0">
               <button
-                onClick={handleToggleMute}
+                onClick={handlePrev}
                 disabled={!isPoweredOn}
-                title={t.muteTitle}
-                className="text-zinc-400 hover:text-white transition-colors disabled:opacity-30 p-0.5"
+                title={t.prevBeatTitle}
+                className="px-2 py-1.5 sm:px-2.5 sm:py-1.5 bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-900 disabled:opacity-30 text-zinc-200 rounded-lg text-xs font-mono-tech flex items-center gap-1 transition-colors border border-zinc-700/60"
               >
-                {isMuted || volume === 0 ? <VolumeX size={14} /> : <Volume2 size={14} />}
+                <ChevronDown size={14} />
+                <span>CH -</span>
               </button>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                value={isMuted ? 0 : volume}
-                onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+              <button
+                onClick={handleNext}
                 disabled={!isPoweredOn}
-                title={t.volumeTitle}
-                className="w-12 xs:w-14 sm:w-16 md:w-20 h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-white disabled:opacity-30"
-              />
+                title={t.nextBeatTitle}
+                className="px-2 py-1.5 sm:px-2.5 sm:py-1.5 bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-900 disabled:opacity-30 text-zinc-200 rounded-lg text-xs font-mono-tech flex items-center gap-1 transition-colors border border-zinc-700/60"
+              >
+                <ChevronUp size={14} />
+                <span>CH +</span>
+              </button>
             </div>
 
-            {/* Master Power Switch */}
-            <button
-              onClick={onPowerToggle}
-              title={isPoweredOn ? t.powerOffTv : t.powerOnTv}
-              className={`p-2 sm:p-2.5 rounded-xl border transition-all active:scale-95 shadow-md ${
-                isPoweredOn
-                  ? 'bg-red-500/10 border-red-500/40 text-red-400 hover:bg-red-500/20 shadow-[0_0_12px_rgba(239,68,68,0.3)]'
-                  : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-white'
-              }`}
-            >
-              <Power size={15} />
-            </button>
+            {/* Central Playback Trigger, Loop & Voice Tag */}
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <button
+                onClick={onTogglePlay}
+                disabled={!isPoweredOn}
+                className={`px-3 sm:px-5 py-1.5 sm:py-2 rounded-xl font-mono-tech text-xs font-bold flex items-center gap-1.5 sm:gap-2 transition-all shadow-md active:scale-95 border ${
+                  isPlaying 
+                    ? 'bg-zinc-200 text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.4)]' 
+                    : 'bg-zinc-800 hover:bg-zinc-700 text-white border-zinc-700'
+                } disabled:opacity-30`}
+              >
+                {isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}
+                <span>{isPlaying ? t.pauseButton : t.playButton}</span>
+              </button>
+
+              {/* Loop Toggle Button */}
+              <button
+                onClick={handleToggleLoop}
+                disabled={!isPoweredOn}
+                title={isLooping ? t.loopOnTitle : t.loopOffTitle}
+                className={`p-1.5 sm:p-2 rounded-xl border font-mono-tech text-xs transition-all flex items-center gap-1 sm:gap-1.5 active:scale-95 ${
+                  isLooping
+                    ? 'bg-white text-black border-white shadow-[0_0_12px_rgba(255,255,255,0.4)] font-bold'
+                    : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-400 border-zinc-800 hover:text-white'
+                } disabled:opacity-30`}
+              >
+                <Repeat size={13} />
+                <span className="hidden xs:inline">{t.loopBadge}</span>
+              </button>
+
+              {/* Producer Voice Tag Button */}
+              <button
+                onClick={handlePlayTag}
+                disabled={!isPoweredOn}
+                title={t.tagButtonTitle}
+                className="p-1.5 sm:p-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 rounded-xl border border-zinc-800 transition-colors flex items-center justify-center text-xs font-mono-tech gap-1 sm:gap-1.5 disabled:opacity-30"
+              >
+                <Sparkles size={13} className="text-zinc-400" />
+                <span className="hidden xs:inline">{t.tagFx}</span>
+              </button>
+            </div>
+
+            {/* Volume and Power Switch */}
+            <div className="flex items-center gap-1.5 sm:gap-2 ml-auto sm:ml-0">
+              {/* Volume Slider */}
+              <div className="flex items-center gap-1 sm:gap-1.5 bg-zinc-900/90 px-1.5 sm:px-2 py-1.5 rounded-xl border border-zinc-800">
+                <button
+                  onClick={handleToggleMute}
+                  disabled={!isPoweredOn}
+                  title={t.muteTitle}
+                  className="text-zinc-400 hover:text-white transition-colors disabled:opacity-30 p-0.5"
+                >
+                  {isMuted || volume === 0 ? <VolumeX size={14} /> : <Volume2 size={14} />}
+                </button>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={isMuted ? 0 : volume}
+                  onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                  disabled={!isPoweredOn}
+                  title={t.volumeTitle}
+                  className="w-10 xs:w-14 sm:w-16 h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-white disabled:opacity-30"
+                />
+              </div>
+
+              {/* Master Power Switch */}
+              <button
+                onClick={onPowerToggle}
+                title={isPoweredOn ? t.powerOffTv : t.powerOnTv}
+                className={`p-2 sm:p-2 rounded-xl border transition-all active:scale-95 shadow-md ${
+                  isPoweredOn
+                    ? 'bg-red-500/10 border-red-500/40 text-red-400 hover:bg-red-500/20 shadow-[0_0_12px_rgba(239,68,68,0.3)]'
+                    : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-white'
+                }`}
+              >
+                <Power size={15} />
+              </button>
+            </div>
           </div>
+
+          {/* Row 2: Killer Sound FX Console (Half-Time, Pitch Detune, CRT Speaker Filter, Visualizer Toggle) */}
+          <div className="flex flex-wrap items-center justify-between gap-1.5 sm:gap-2 pt-1 border-t border-zinc-800/40 text-[11px] font-mono-tech">
+            
+            {/* Left FX: Half-Time & Lo-Fi Speaker */}
+            <div className="flex items-center gap-1 sm:gap-1.5">
+              {/* Half-Time Toggle */}
+              <button
+                onClick={handleToggleHalfTime}
+                disabled={!isPoweredOn}
+                title={t.halfTimeTitle}
+                className={`px-2 py-1 sm:px-2.5 sm:py-1 rounded-lg border transition-all flex items-center gap-1 active:scale-95 disabled:opacity-30 ${
+                  isHalfTime
+                    ? 'bg-amber-400 text-black border-amber-300 font-bold shadow-[0_0_12px_rgba(251,191,36,0.6)]'
+                    : 'bg-zinc-900/90 hover:bg-zinc-800 text-zinc-400 border-zinc-800 hover:text-zinc-200'
+                }`}
+              >
+                <Sliders size={12} />
+                <span>0.5X SLOW</span>
+              </button>
+
+              {/* CRT Lo-Fi Speaker Filter */}
+              <button
+                onClick={handleToggleLofi}
+                disabled={!isPoweredOn}
+                title={t.lofiFilterTitle}
+                className={`px-2 py-1 sm:px-2.5 sm:py-1 rounded-lg border transition-all flex items-center gap-1 active:scale-95 disabled:opacity-30 ${
+                  isLofi
+                    ? 'bg-emerald-400 text-black border-emerald-300 font-bold shadow-[0_0_12px_rgba(52,211,153,0.6)]'
+                    : 'bg-zinc-900/90 hover:bg-zinc-800 text-zinc-400 border-zinc-800 hover:text-zinc-200'
+                }`}
+              >
+                <Radio size={12} />
+                <span>CRT LO-FI</span>
+              </button>
+            </div>
+
+            {/* Right FX: Pitch Transpose & Visualizer Mode */}
+            <div className="flex items-center gap-1 sm:gap-1.5 ml-auto sm:ml-0">
+              {/* Pitch Transpose Group */}
+              <div className="flex items-center gap-0.5 bg-zinc-900/90 px-1 py-0.5 rounded-lg border border-zinc-800">
+                <span className="text-[10px] text-zinc-500 font-semibold px-1 hidden xs:inline">
+                  TUNE
+                </span>
+                <button
+                  onClick={() => handlePitchStep(-1)}
+                  disabled={!isPoweredOn || pitchSemitones <= -2}
+                  title={t.pitchDownTitle}
+                  className="w-5 h-5 flex items-center justify-center rounded bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-900 text-zinc-300 disabled:opacity-30 transition-colors text-xs font-bold"
+                >
+                  -
+                </button>
+                <span 
+                  onClick={handlePitchReset}
+                  title={t.pitchResetTitle}
+                  className={`px-1.5 text-center min-w-[28px] cursor-pointer text-[10px] font-bold rounded ${
+                    pitchSemitones !== 0 ? 'text-cyan-300 bg-cyan-950/40' : 'text-zinc-400'
+                  }`}
+                >
+                  {pitchSemitones > 0 ? `+${pitchSemitones}` : pitchSemitones}
+                </span>
+                <button
+                  onClick={() => handlePitchStep(1)}
+                  disabled={!isPoweredOn || pitchSemitones >= 2}
+                  title={t.pitchUpTitle}
+                  className="w-5 h-5 flex items-center justify-center rounded bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-900 text-zinc-300 disabled:opacity-30 transition-colors text-xs font-bold"
+                >
+                  +
+                </button>
+                {pitchSemitones !== 0 && (
+                  <button
+                    onClick={handlePitchReset}
+                    title={t.pitchResetTitle}
+                    className="p-0.5 text-zinc-500 hover:text-zinc-300 transition-colors ml-0.5"
+                  >
+                    <RotateCcw size={10} />
+                  </button>
+                )}
+              </div>
+
+              {/* Visualizer Mode Toggle */}
+              <button
+                onClick={handleToggleVisualizer}
+                disabled={!isPoweredOn}
+                title={t.vfdToggleTitle}
+                className="px-2 py-1 rounded-lg border bg-zinc-900/90 hover:bg-zinc-800 text-zinc-400 border-zinc-800 hover:text-zinc-200 transition-all flex items-center gap-1 active:scale-95 disabled:opacity-30"
+              >
+                <Activity size={12} className={visualizerMode === 'spectrum' ? 'text-cyan-400' : 'text-zinc-400'} />
+                <span>{visualizerMode === 'spectrum' ? 'VFD' : 'OSC'}</span>
+              </button>
+            </div>
+
+          </div>
+
         </div>
 
       </div>

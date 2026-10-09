@@ -2,6 +2,8 @@ export type Language = 'en' | 'ru'
 
 export interface Translations {
   // Header
+  brandTitle: string
+  producerTagline: string
   telegramTitle: string
   emailTitle: string
   switchLangTitle: string
@@ -24,9 +26,32 @@ export interface Translations {
   fullTrack: string
   previewBadge: string
   oscilloscopeTitle: string
+  vfdSpectrumTitle: string
   scaleTitle: string
+  gestureHint: string
 
-  // Controls
+  // Killer FX Controls & OSD
+  halfTimeTitle: string
+  halfTimeBadge: string
+  halfTimeOsdOn: string
+  halfTimeOsdOff: string
+
+  pitchDownTitle: string
+  pitchUpTitle: string
+  pitchResetTitle: string
+  pitchBadge: string
+  pitchOsd: (semitones: number, key: string) => string
+
+  vfdToggleTitle: string
+  vfdModeWave: string
+  vfdModeBars: string
+
+  lofiFilterTitle: string
+  lofiBadge: string
+  lofiOsdOn: string
+  lofiOsdOff: string
+
+  // Standard Controls
   prevBeatTitle: string
   nextBeatTitle: string
   playButton: string
@@ -53,9 +78,11 @@ export interface Translations {
   acquireBeat: string
   acquireBeatShort: string
 
-  // Deal Modal
+  // Deal Modal (Professional licensing & 70/30 split)
   modalBadge: string
   modalNote: string
+  dealTermsTitle: string
+  dealTermsList: string[]
   modalTgButton: string
   modalEmailButton: string
   copiedText: string
@@ -72,129 +99,193 @@ export interface Translations {
 
 export const translations: Record<Language, Translations> = {
   en: {
-    telegramTitle: 'Contact via Telegram',
-    emailTitle: 'Send an Email',
+    brandTitle: 'WWSKILLY',
+    producerTagline: 'W8WHT? SOUND LAB',
+    telegramTitle: 'Contact Producer via Telegram',
+    emailTitle: 'Send Licensing Inquiry (Email)',
     switchLangTitle: 'Переключить на русский язык (RU)',
 
-    turnOnTv: 'TURN ON TV',
-    standbyHint: 'STANDBY • CLICK TO POWER ON',
-    coldPhosphor: 'COLD PHOSPHOR',
-    standbyStatus: 'STANDBY',
-    powerOffTv: 'Turn Off TV',
-    powerOnTv: 'Turn On TV',
+    turnOnTv: 'INITIALIZE MONITOR',
+    standbyHint: 'STANDBY // CLICK TO INITIALIZE SYSTEM',
+    coldPhosphor: 'CRT 15" // ACTIVE',
+    standbyStatus: 'STANDBY // IDLE',
+    powerOffTv: 'Power Off Monitor',
+    powerOnTv: 'Power On Monitor',
 
-    onlineMessage: 'W8WHT? // ONLINE',
+    onlineMessage: 'W8WHT? SOUND LAB // SYSTEM ONLINE',
     chTitle: 'CH',
-    vcrQuality: 'VCR-HQ',
-    playingPreview: 'PLAYING PREVIEW',
+    vcrQuality: 'HQ-MASTER',
+    playingPreview: 'PREVIEW MONITORING',
     paused: 'PAUSED',
     loopBadge: 'LOOP',
-    fullTrack: 'FULL TRACK',
+    fullTrack: 'MASTER TRACK',
     previewBadge: 'PREVIEW',
     oscilloscopeTitle: 'OSCILLOSCOPE // 20Hz - 20kHz',
-    scaleTitle: 'SCALE',
+    vfdSpectrumTitle: 'VFD SPECTRUM ANALYZER // 16-BAND',
+    scaleTitle: 'SCALE / KEY',
+    gestureHint: 'SWIPE: CH- / CH+ • TAP: PLAY',
+
+    halfTimeTitle: '0.5X Speed Mode (Half-Time / Slowed)',
+    halfTimeBadge: '0.5X SLOW',
+    halfTimeOsdOn: 'MODE: HALF-TIME (0.5X)',
+    halfTimeOsdOff: 'MODE: ORIGINAL TEMPO (1.0X)',
+
+    pitchDownTitle: 'Transpose Down (-1 Semitone)',
+    pitchUpTitle: 'Transpose Up (+1 Semitone)',
+    pitchResetTitle: 'Reset Transpose (0 ST)',
+    pitchBadge: 'PITCH',
+    pitchOsd: (semitones: number, key: string) =>
+      `PITCH: ${semitones > 0 ? '+' : ''}${semitones} ST ➔ ${key}`,
+
+    vfdToggleTitle: 'Toggle Visualizer Mode (Oscilloscope / VFD)',
+    vfdModeWave: 'WAVE',
+    vfdModeBars: 'VFD',
+
+    lofiFilterTitle: 'CRT Speaker Bandpass Emulation (Lo-Fi Filter)',
+    lofiBadge: 'LO-FI SPK',
+    lofiOsdOn: 'SPEAKER: CRT LO-FI',
+    lofiOsdOff: 'SPEAKER: STUDIO MASTER (FLAT)',
 
     prevBeatTitle: 'Previous track (CH -)',
     nextBeatTitle: 'Next track (CH +)',
     playButton: 'PLAY PREVIEW',
     pauseButton: 'PAUSE',
-    loopOnTitle: 'Disable loop',
-    loopOffTitle: 'Loop playback (LOOP)',
+    loopOnTitle: 'Disable seamless loop',
+    loopOffTitle: 'Seamless loop playback (LOOP)',
     loopOnOsd: 'LOOP: ON',
     loopOffOsd: 'LOOP: OFF',
-    tagButtonTitle: 'Signature W8WHT? Voice Tag',
-    tagOsd: 'TAG: W8WHT?',
+    tagButtonTitle: 'Signature W8WHT? Producer Voice Tag',
+    tagOsd: 'VOICE TAG: W8WHT?',
     tagFx: 'TAG FX',
-    volumeTitle: 'Volume',
+    volumeTitle: 'Monitor Volume',
     muteTitle: 'Mute / Unmute',
 
-    tracklistTitle: 'CATALOG // TRACKLIST',
+    tracklistTitle: 'PRODUCTION CATALOG // DISCOGRAPHY',
     searchPlaceholder: 'Search (BPM, key, title...)',
-    noTracksFound: 'No beats matching your search',
+    noTracksFound: 'No beats matching your criteria',
     noTracksEmpty: 'NO TRACKS AVAILABLE',
 
     playTrackAria: 'Play preview of',
     pauseTrackAria: 'Pause',
-    acquireBeat: 'ACQUIRE',
-    acquireBeatShort: 'GET',
+    acquireBeat: 'ACQUIRE MASTER',
+    acquireBeatShort: 'ACQUIRE',
 
-    modalBadge: 'ACQUIRE BEAT // DIRECT LICENSE',
-    modalNote: 'Vibe with this beat? Reach out on Telegram — get the uncompressed WAV free for your placement under royalties.',
-    modalTgButton: 'MESSAGE ON TELEGRAM',
-    modalEmailButton: 'SEND EMAIL MESSAGE',
-    copiedText: 'Copied!',
+    modalBadge: 'PRODUCTION LICENSING // DIRECT ACQUISITION',
+    modalNote:
+      'Uncompressed 24-bit / 44.1 kHz master WAV provided for commercial streaming release under a 70/30 royalty split (30% producer royalties to WWSKILLY). Multitrack stems (trackouts), custom arrangements, and full exclusive buyout rights are negotiated directly.',
+    dealTermsTitle: 'DELIVERABLES & TIERS:',
+    dealTermsList: [
+      'WAV Master 24-bit — delivered for official commercial release under 70/30 royalty split (30% WWSKILLY)',
+      'Trackouts / Stems (multitrack stems) — available for precision vocal mixing & arrangement',
+      'Exclusive Buyout — full assignment of exclusive rights with removal from public catalog',
+    ],
+    modalTgButton: 'DISCUSS RELEASE ON TELEGRAM',
+    modalEmailButton: 'SEND OFFICIAL EMAIL INQUIRY',
+    copiedText: 'Copied to clipboard!',
     copyTgBtn: 'Copy TG @mrski2ly',
     copyEmailBtn: 'Copy Email',
-    modalFooter: 'W8WHT? • Instant direct response on Telegram',
+    modalFooter: 'WWSKILLY Production • Direct author communication and rapid turnaround',
     modalTgMessage: (title: string, bpm: number, key: string) =>
-      `Hey Skilly! Checked out the beat "${title}" (${bpm} BPM, ${key}). Want to grab the uncompressed WAV and hop on it under royalties.`,
-    modalEmailSubject: (title: string) => `Beat Inquiry: ${title} [WWSKILLY]`,
+      `Hello Skilly. Interested in the production for "${title}" (${bpm} BPM, ${key}). Planning a commercial release with a 70/30 royalty split. Requesting master WAV and licensing details.`,
+    modalEmailSubject: (title: string) => `Production License Inquiry: ${title} [WWSKILLY]`,
     modalEmailBody: (title: string, bpm: number, key: string) =>
-      `Hey Skilly!\n\nJust checked out your beat "${title}" (${bpm} BPM, ${key}).\nI'd like to acquire the WAV tracks and work on a release under royalties.\n\nMy artist name / contact:`,
+      `Hello Skilly,\n\nI am interested in licensing the instrumental "${title}" (${bpm} BPM, ${key}).\nPlanning a commercial release with a 70/30 royalty split (30% producer royalties to WWSKILLY).\n\nRequested deliverables:\n[x] Uncompressed Master WAV (24-bit)\n[ ] Multitrack Stems (Trackouts)\n[ ] Exclusive Buyout\n\nArtist / Label / Management contact:\n`,
 
-    quickResponse: 'Direct Music Inquiries',
+    quickResponse: 'WWSKILLY • Premium Sound Design, Production & Direct Licensing',
   },
   ru: {
-    telegramTitle: 'Написать в Telegram',
-    emailTitle: 'Написать на Email',
+    brandTitle: 'WWSKILLY',
+    producerTagline: 'W8WHT? SOUND LAB',
+    telegramTitle: 'Связаться с продюсером в Telegram',
+    emailTitle: 'Отправить официальный запрос (Email)',
     switchLangTitle: 'Switch to English (EN)',
 
-    turnOnTv: 'ВКЛЮЧИТЬ ТЕЛЕВИЗОР',
-    standbyHint: 'STANDBY • НАЖМИТЕ ДЛЯ ЗАПУСКА',
-    coldPhosphor: 'COLD PHOSPHOR',
-    standbyStatus: 'STANDBY',
-    powerOffTv: 'Выключить ТВ',
-    powerOnTv: 'Включить ТВ',
+    turnOnTv: 'ВКЛЮЧИТЬ МОНИТОР',
+    standbyHint: 'STANDBY // НАЖМИТЕ ДЛЯ ЗАПУСКА СИСТЕМЫ',
+    coldPhosphor: 'CRT 15" // ACTIVE',
+    standbyStatus: 'STANDBY // ОЖИДАНИЕ',
+    powerOffTv: 'Выключить монитор',
+    powerOnTv: 'Включить монитор',
 
-    onlineMessage: 'W8WHT? // В СЕТИ',
+    onlineMessage: 'W8WHT? SOUND LAB // СИСТЕМА АКТИВНА',
     chTitle: 'CH',
-    vcrQuality: 'VCR-HQ',
-    playingPreview: 'ИГРАЕТ ПРЕВЬЮ',
+    vcrQuality: 'HQ-MASTER',
+    playingPreview: 'МОНИТОРИНГ ПРЕВЬЮ',
     paused: 'ПАУЗА',
     loopBadge: 'LOOP',
-    fullTrack: 'ПОЛНЫЙ ТРЕК',
+    fullTrack: 'МАСТЕР-ТРЕК',
     previewBadge: 'ПРЕВЬЮ',
-    oscilloscopeTitle: 'OSCILLOSCOPE // 20Hz - 20kHz',
+    oscilloscopeTitle: 'ОСЦИЛЛОГРАФ // 20Hz - 20kHz',
+    vfdSpectrumTitle: 'VFD АНАЛИЗАТОР СПЕКТРА // 16 ПОЛОС',
     scaleTitle: 'ТОНАЛЬНОСТЬ',
+    gestureHint: 'СВАЙП: CH- / CH+ • ТАП: ПЛЕЙ',
 
-    prevBeatTitle: 'Предыдущий бит (CH -)',
-    nextBeatTitle: 'Следующий бит (CH +)',
+    halfTimeTitle: 'Режим 0.5X (Half-Time / Slowed)',
+    halfTimeBadge: '0.5X SLOW',
+    halfTimeOsdOn: 'MODE: HALF-TIME (0.5X)',
+    halfTimeOsdOff: 'MODE: ORIGINAL TEMPO (1.0X)',
+
+    pitchDownTitle: 'Понизить тональность (-1 полутон)',
+    pitchUpTitle: 'Повысить тональность (+1 полутон)',
+    pitchResetTitle: 'Сбросить тональность в 0',
+    pitchBadge: 'PITCH',
+    pitchOsd: (semitones: number, key: string) =>
+      `PITCH: ${semitones > 0 ? '+' : ''}${semitones} ST ➔ ${key}`,
+
+    vfdToggleTitle: 'Сменить режим визуализации (Осциллограф / VFD)',
+    vfdModeWave: 'WAVE',
+    vfdModeBars: 'VFD',
+
+    lofiFilterTitle: 'Эмуляция кинескопного динамика (CRT Lo-Fi)',
+    lofiBadge: 'LO-FI SPK',
+    lofiOsdOn: 'SPEAKER: CRT LO-FI',
+    lofiOsdOff: 'SPEAKER: STUDIO MASTER (FLAT)',
+
+    prevBeatTitle: 'Предыдущий трек (CH -)',
+    nextBeatTitle: 'Следующий трек (CH +)',
     playButton: 'СЛУШАТЬ ПРЕВЬЮ',
     pauseButton: 'ПАУЗА',
-    loopOnTitle: 'Выключить повтор',
+    loopOnTitle: 'Отключить цикличное воспроизведение',
     loopOffTitle: 'Зациклить воспроизведение (LOOP)',
-    loopOnOsd: 'LOOP: ON',
-    loopOffOsd: 'LOOP: OFF',
-    tagButtonTitle: 'Фирменный тег W8WHT?',
-    tagOsd: 'TAG: W8WHT?',
+    loopOnOsd: 'LOOP: ВКЛ',
+    loopOffOsd: 'LOOP: ВЫКЛ',
+    tagButtonTitle: 'Фирменный войс-тег W8WHT?',
+    tagOsd: 'VOICE TAG: W8WHT?',
     tagFx: 'TAG FX',
-    volumeTitle: 'Громкость',
+    volumeTitle: 'Громкость монитора',
     muteTitle: 'Вкл / Выкл звук',
 
-    tracklistTitle: 'КАТАЛОГ // ТРЕКЛИСТ',
-    searchPlaceholder: 'Поиск (140, D#m...)',
-    noTracksFound: 'Треки не найдены',
-    noTracksEmpty: 'НЕТ ТРЕКОВ',
+    tracklistTitle: 'КАТАЛОГ ПРОДАКШНА // АУДИОТЕКА',
+    searchPlaceholder: 'Поиск по темпу (BPM), тональности, названию...',
+    noTracksFound: 'Инструменталы по заданным критериям не найдены',
+    noTracksEmpty: 'КАТАЛОГ ПУСТ',
 
     playTrackAria: 'Слушать превью',
-    pauseTrackAria: 'Пауза',
-    acquireBeat: 'ВЗЯТЬ В РАБОТУ',
-    acquireBeatShort: 'В РАБОТУ',
+    pauseTrackAria: 'Приостановить',
+    acquireBeat: 'ЗАПРОСИТЬ ТРЕК',
+    acquireBeatShort: 'ЗАПРОС',
 
-    modalBadge: 'ВЗЯТЬ БИТ // СВЯЗЬ С SKILLY',
-    modalNote: 'Понравился бит? Пиши в Telegram — бесплатно скину WAV под твой трек под роялти.',
-    modalTgButton: 'НАПИСАТЬ В TELEGRAM',
-    modalEmailButton: 'ОТПРАВИТЬ ПИСЬМО НА EMAIL',
-    copiedText: 'Скопировано!',
-    copyTgBtn: 'Копия TG @mrski2ly',
-    copyEmailBtn: 'Копия Email',
-    modalFooter: 'W8WHT? • Быстрый ответ в Telegram',
+    modalBadge: 'ЛИЦЕНЗИРОВАНИЕ И ПЕРЕДАЧА МАСТЕРА // WWSKILLY',
+    modalNote:
+      'Мастер-запись в несжатом формате WAV 24-bit / 44.1 kHz передается под коммерческий релиз на условиях распределения роялти 70% (Артист) / 30% (Продюсер WWSKILLY). Поканальные дорожки (Trackouts / Stems), кастомные правки аранжировки и полный выкуп эксклюзивных прав (Exclusive Buyout) обсуждаются напрямую.',
+    dealTermsTitle: 'УСЛОВИЯ И ФОРМАТЫ:',
+    dealTermsList: [
+      'WAV Master 24-bit — передается для официального релиза с роялти-сплитом 70/30 (30% WWSKILLY)',
+      'Trackouts / Stems (поканальный мультитрек) — доступен для детального сведения под ваш вокал',
+      'Exclusive Buyout — полное отчуждение исключительных прав и удаление инструментала из каталога',
+    ],
+    modalTgButton: 'ОБСУДИТЬ РЕЛИЗ В TELEGRAM',
+    modalEmailButton: 'НАПРАВИТЬ ОФИЦИАЛЬНЫЙ ЗАПРОС (EMAIL)',
+    copiedText: 'Скопировано в буфер!',
+    copyTgBtn: 'Копировать TG @mrski2ly',
+    copyEmailBtn: 'Копировать Email',
+    modalFooter: 'WWSKILLY Production • Прямой контакт с автором и оперативное согласование условий',
     modalTgMessage: (title: string, bpm: number, key: string) =>
-      `Привет, Skilly! Заценил бит «${title}» (${bpm} BPM, ${key}). Хочу забрать WAV и залететь на него.`,
-    modalEmailSubject: (title: string) => `Бит ${title} [WWSKILLY]`,
+      `Здравствуйте, Skilly. Интересует продакшн «${title}» (${bpm} BPM, ${key}). Планирую коммерческий релиз с роялти-сплитом 70/30, нужен мастер WAV и согласование условий.`,
+    modalEmailSubject: (title: string) => `Запрос лицензии на продакшн: ${title} [WWSKILLY]`,
     modalEmailBody: (title: string, bpm: number, key: string) =>
-      `Привет, Skilly!\n\nЗаценил твой бит «${title}» (${bpm} BPM, ${key}).\nХочу взять его в работу под трек.\n\nМой никнейм/контакт для связи:`,
+      `Здравствуйте, Skilly!\n\nИнтересует инструментал «${title}» (${bpm} BPM, ${key}).\nПланируется релиз на цифровых площадках с распределением роялти 70% (Артист) / 30% (Продюсер WWSKILLY).\n\nЗапрашиваемые материалы:\n[x] Несжатый мастер WAV (24-bit)\n[ ] Поканальные дорожки (Stems/Trackouts)\n[ ] Эксклюзивный выкуп прав (Exclusive Buyout)\n\nИмя артиста / лейбл / контакты менеджмента:\n`,
 
-    quickResponse: 'Прямая связь с битмейкером',
+    quickResponse: 'WWSKILLY • Профессиональный продакшн, саунд-дизайн и лицензирование',
   },
 }
